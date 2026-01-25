@@ -17,12 +17,14 @@ interface Event {
   vibe_description?: string;
 }
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 export default function Home() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('http://localhost:8000/api/events')
+    fetch(`${API_BASE}/api/events`)
       .then(res => res.json())
       .then(data => {
         setEvents(data);
@@ -37,7 +39,7 @@ export default function Home() {
 
   const refreshScraper = async (source: string) => {
     try {
-      const res = await fetch(`http://localhost:8000/api/scrape/${source}`, { method: 'POST' });
+      const res = await fetch(`${API_BASE}/api/scrape/${source}`, { method: 'POST' });
       if (res.ok) {
         alert(`Started scraping ${source}! Give it a few seconds/minutes.`);
       } else {

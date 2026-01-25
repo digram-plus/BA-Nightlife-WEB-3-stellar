@@ -34,6 +34,8 @@ venv/
 ENV/
 env/
 .env
+.env.local
+.env.*.local
 
 # Node.js / Frontend
 node_modules/
@@ -53,6 +55,8 @@ frontend/next-env.d.ts
 # Database
 *.sqlite3
 postgres_data/
+*.sql
+*.session
 
 # IDEs
 .vscode/
@@ -71,3 +75,5 @@ docker-compose.override.yml
 coverage/
 htmlcov/
 .pytest_cache/
+*.whl
+Passline*

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
+import { useChainId, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
 import { parseEther } from 'viem';
 import { Coins } from 'lucide-react';
 
@@ -11,6 +11,7 @@ interface TipButtonProps {
 }
 
 export function TipButton({ walletAddress, artistName }: TipButtonProps) {
+  const chainId = useChainId();
   const { 
     data: hash, 
     isPending, 
@@ -33,6 +34,19 @@ export function TipButton({ walletAddress, artistName }: TipButtonProps) {
 
   if (!walletAddress) return null;
 
+  const explorerBaseUrl =
+    chainId === 56
+      ? 'https://bscscan.com'
+      : chainId === 97
+      ? 'https://testnet.bscscan.com'
+      : chainId === 204
+      ? 'https://opbnbscan.com'
+      : chainId === 5611
+      ? 'https://testnet.opbnbscan.com'
+      : 'https://bscscan.com';
+
+  const txUrl = hash ? `${explorerBaseUrl}/tx/${hash}` : null;
+
   return (
     <div className="mt-4">
       <button
@@ -44,9 +58,19 @@ export function TipButton({ walletAddress, artistName }: TipButtonProps) {
         {isPending || isConfirming ? 'SENDING...' : `TIP 0.001 BNB`}
       </button>
       {isSuccess && (
-        <p className="bg-black text-[#a1ff00] text-center font-black py-2 mt-4 border-2 border-black rotate-1">
-          BNB SENT! VIBES SECURED! 🥂
-        </p>
+        <div className="bg-black text-[#a1ff00] text-center font-black py-2 mt-4 border-2 border-black rotate-1">
+          <p>BNB SENT! VIBES SECURED! 🥂</p>
+          {txUrl && (
+            <a
+              href={txUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-block mt-2 underline text-white"
+            >
+              VIEW ON EXPLORER
+            </a>
+          )}
+        </div>
       )}
     </div>
   );

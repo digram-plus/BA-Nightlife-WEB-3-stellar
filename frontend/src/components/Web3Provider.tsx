@@ -11,9 +11,18 @@ import { WagmiProvider } from 'wagmi';
 import { bsc } from 'wagmi/chains';
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 
+const walletConnectProjectId =
+  process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? '';
+
+if (!walletConnectProjectId) {
+  console.warn(
+    'Missing NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID. WalletConnect may not work correctly.'
+  );
+}
+
 const config = getDefaultConfig({
   appName: 'BA Nightlife',
-  projectId: 'YOUR_PROJECT_ID', // In a real app, this would be from env
+  projectId: walletConnectProjectId,
   chains: [bsc],
   ssr: true,
 });

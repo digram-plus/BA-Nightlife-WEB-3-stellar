@@ -36,6 +36,8 @@ env/
 .env
 .env.local
 .env.*.local
+*.session
+*.session-journal
 
 # Node.js / Frontend
 node_modules/

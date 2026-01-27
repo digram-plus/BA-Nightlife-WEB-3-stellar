@@ -13,6 +13,8 @@ from sqlalchemy import (
     func,
     BigInteger,
     ARRAY,
+    ForeignKey,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -48,4 +50,22 @@ class Event(Base):
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
+class CheckIn(Base):
+    __tablename__ = "checkins"
+    __table_args__ = (
+        UniqueConstraint("event_id", "wallet_address", name="uq_checkins_event_wallet"),
+        UniqueConstraint("nonce", name="uq_checkins_nonce"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    event_id: Mapped[int] = mapped_column(Integer, ForeignKey("events.id"), index=True, nullable=False)
+    wallet_address: Mapped[str] = mapped_column(String(42), index=True, nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    signature: Mapped[str] = mapped_column(Text, nullable=False)
+    nonce: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )

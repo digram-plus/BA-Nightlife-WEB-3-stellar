@@ -38,7 +38,12 @@ POSTGRES_PORT=5432
 TG_BOT_TOKEN=your_token
 TG_API_ID=0
 TG_API_HASH=
+TG_SESSION=ba_events_session
+TG_CHANNELS=AfishaBA,vista_argentina,buenosaires_afisha,TechnoLoversBA,eventosbsas
 TG_CHANNEL_ID=
+
+# Protect scraper triggers
+SCRAPE_API_KEY=change_me
 ```
 
 Run API:

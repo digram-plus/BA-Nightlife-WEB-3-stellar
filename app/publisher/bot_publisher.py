@@ -1,12 +1,14 @@
 import os
-import logging 
+import logging
 import asyncio
+from datetime import datetime
 from aiogram import Bot
 from sqlalchemy.orm import Session
 from aiogram.exceptions import TelegramRetryAfter
 from ..db import SessionLocal
 from ..models import Event
 from ..config import Config
+from ..utils import TZ
 from .templates import build_caption, build_keyboard
 from .images import get_event_media
 
@@ -138,9 +140,11 @@ async def run_publisher():
     """Основной цикл публикации очереди событий."""
     db: Session = SessionLocal()
     try:
+        today = datetime.now(TZ).date()
         events = (
             db.query(Event)
             .filter_by(status="queued")
+            .filter(Event.date >= today)
             .order_by(Event.date.asc())
             .limit(10)
             .all()

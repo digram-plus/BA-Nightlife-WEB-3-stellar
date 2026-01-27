@@ -26,14 +26,19 @@ def make_hash(title_norm: str, date_iso: str, venue: str | None) -> str:
 
 
 def parse_date(text: str):
-    dt = dateparser.parse(
-        text,
-        settings={
-            "TIMEZONE": str(TZ),
-            "RETURN_AS_TIMEZONE_AWARE": True,
-            "PREFER_DATES_FROM": "future",
-        },
-    )
+    if not text:
+        return None, None
+    try:
+        dt = dateparser.parse(
+            text,
+            settings={
+                "TIMEZONE": str(TZ),
+                "RETURN_AS_TIMEZONE_AWARE": True,
+                "PREFER_DATES_FROM": "future",
+            },
+        )
+    except (RecursionError, Exception):
+        return None, None
     if not dt:
         return None, None
 

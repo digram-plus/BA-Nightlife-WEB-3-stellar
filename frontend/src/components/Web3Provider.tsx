@@ -33,7 +33,14 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider theme={darkTheme()}>
+        <RainbowKitProvider 
+          theme={darkTheme({
+            accentColor: '#a1ff00',
+            accentColorForeground: 'black',
+            borderRadius: 'none',
+          })}
+          modalSize="compact"
+        >
           {children}
         </RainbowKitProvider>
       </QueryClientProvider>

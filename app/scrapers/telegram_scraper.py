@@ -1,6 +1,7 @@
 import asyncio
 import os
 from io import BytesIO
+from typing import Optional, cast
 
 from telethon import TelegramClient
 from sqlalchemy.orm import Session
@@ -11,7 +12,28 @@ from ..utils import normalize_title, make_hash, parse_date
 from ..services.ocr import extract_text_from_bytes
 from ..services.n8n_service import push_event_to_n8n
 
-CHANNELS = ["AfishaBA", "vista_argentina", "buenosaires_afisha"]
+DEFAULT_CHANNELS = [
+    "AfishaBA",
+    "vista_argentina",
+    "buenosaires_afisha",
+    "TechnoLoversBA",
+    "eventosbsas",
+]
+
+
+def _load_channels() -> list[str]:
+    raw = (os.getenv("TG_CHANNELS") or "").strip()
+    if not raw:
+        return DEFAULT_CHANNELS
+    channels: list[str] = []
+    for item in raw.split(","):
+        name = item.strip()
+        if not name:
+            continue
+        if name.startswith("@"):
+            name = name[1:]
+        channels.append(name)
+    return channels or DEFAULT_CHANNELS
 
 IMAGE_MIME_PREFIX = "image/"
 
@@ -41,34 +63,52 @@ async def _extract_media_text(msg) -> str:
         return ""
 
 
-async def fetch_and_store(limit: int = None, force_publish: bool = False):
-    client = TelegramClient(os.getenv("TG_SESSION"), int(os.getenv("TG_API_ID")), os.getenv("TG_API_HASH"))
+async def fetch_and_store(limit: Optional[int] = None, force_publish: bool = False):
+    api_id_raw = os.getenv("TG_API_ID")
+    api_hash_raw = os.getenv("TG_API_HASH")
+    session_name_raw = os.getenv("TG_SESSION")
+    if not api_id_raw or not api_hash_raw or not session_name_raw:
+        print("Missing TG_API_ID/TG_API_HASH/TG_SESSION")
+        return
+
+    api_id = int(cast(str, api_id_raw))
+    api_hash = cast(str, api_hash_raw)
+    session_name = cast(str, session_name_raw)
+
+    client = TelegramClient(session_name, api_id, api_hash)
     async with client:
         db: Session = SessionLocal()
         created = 0
         try:
-            for ch in CHANNELS:
+            for ch in _load_channels():
                 if limit and created >= limit:
                     break
-                entity = await client.get_entity(ch)
-                async for msg in client.iter_messages(entity, limit=50):
+                async for msg in client.iter_messages(ch, limit=50):
                     if limit and created >= limit:
                         break
                         
                     text = (msg.text or msg.message or "").strip()
-                    media_text = await _extract_media_text(msg)
+                    if not text and not _is_image_message(msg):
+                        continue
+
+                    date, time = parse_date(text) if text else (None, None)
+                    media_text = ""
+                    if not date and _is_image_message(msg):
+                        media_text = await _extract_media_text(msg)
+
                     combined_text = " ".join(part for part in (text, media_text) if part)
                     if not combined_text:
                         continue
+
+                    if not date:
+                        date, time = parse_date(combined_text)
+                        if not date:
+                            continue
 
                     base_title = text if text else media_text
                     if not base_title:
                         continue
                     title = base_title.split("\n", 1)[0][:280]
-
-                    date, time = parse_date(combined_text)
-                    if not date:
-                        continue
 
                     title_norm = normalize_title(title)
                     h = make_hash(title_norm, date.isoformat(), None)

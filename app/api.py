@@ -1,17 +1,27 @@
-from fastapi import FastAPI, Depends, Query, HTTPException, BackgroundTasks
+import os
+from dotenv import load_dotenv
+import secrets
+from pathlib import Path
+from datetime import date, datetime
+from fastapi import FastAPI, Depends, Query, HTTPException, BackgroundTasks, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import date
+from eth_account import Account
+from eth_account.messages import encode_defunct
 from .db import SessionLocal
-from .models import Event
+from .models import Event, CheckIn
 from pydantic import BaseModel
 import logging
 
 # Import scrapers
 from .scrapers import venti_parser, catpass_parser, passline_parser, bombo_parser
 
+load_dotenv(dotenv_path=Path(__file__).resolve().parents[1] / ".env")
+
 logger = logging.getLogger("api")
+
+SCRAPE_API_KEY = os.getenv("SCRAPE_API_KEY")
 
 app = FastAPI(title="BA Nightlife API")
 
@@ -48,6 +58,36 @@ class ScrapeResponse(BaseModel):
     message: str
     source: str
 
+
+class CheckInChallengeRequest(BaseModel):
+    event_id: int
+
+
+class CheckInChallengeResponse(BaseModel):
+    event_id: int
+    nonce: str
+    message: str
+
+
+class CheckInVerifyRequest(BaseModel):
+    event_id: int
+    wallet_address: str
+    signature: str
+    message: str
+    nonce: str
+
+
+class CheckInVerifyResponse(BaseModel):
+    status: str
+    checkin_id: int
+    created_at: datetime
+
+
+class CheckInStatusResponse(BaseModel):
+    status: str
+    checkin_id: Optional[int] = None
+    created_at: Optional[datetime] = None
+
 # Dependency to get DB session
 def get_db():
     db = SessionLocal()
@@ -55,6 +95,24 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def require_scrape_key(x_api_key: str | None = Header(default=None, alias="X-API-Key")):
+    if not SCRAPE_API_KEY:
+        raise HTTPException(status_code=500, detail="SCRAPE_API_KEY not configured")
+    if not x_api_key or x_api_key != SCRAPE_API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
+
+def build_checkin_message(event_id: int, event_date: date, nonce: str) -> str:
+    return "\n".join(
+        [
+            "BA Nightlife Check-in",
+            f"Event ID: {event_id}",
+            f"Date: {event_date.isoformat()}",
+            f"Nonce: {nonce}",
+        ]
+    )
 
 @app.get("/api/events", response_model=List[EventSchema])
 def get_events(
@@ -74,6 +132,14 @@ def get_events(
         query = query.filter(Event.genres.contains([genre]))
     
     return query.order_by(Event.date.asc()).all()
+
+
+@app.get("/api/events/{event_id}", response_model=EventSchema)
+def get_event(event_id: int, db: Session = Depends(get_db)):
+    event = db.query(Event).filter_by(id=event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return event
 
 @app.get("/api/genres")
 def get_genres(db: Session = Depends(get_db)):
@@ -100,7 +166,11 @@ def run_scraper_bg(source_name: str):
         logger.error(f"Error running scraper {source_name}: {e}")
 
 @app.post("/api/scrape/{source_name}", response_model=ScrapeResponse)
-async def trigger_scrape(source_name: str, background_tasks: BackgroundTasks):
+async def trigger_scrape(
+    source_name: str,
+    background_tasks: BackgroundTasks,
+    _auth: None = Depends(require_scrape_key),
+):
     valid_sources = ["venti", "catpass", "passline", "bombo"]
     if source_name not in valid_sources:
         raise HTTPException(status_code=400, detail="Invalid source")
@@ -108,3 +178,87 @@ async def trigger_scrape(source_name: str, background_tasks: BackgroundTasks):
     background_tasks.add_task(run_scraper_bg, source_name)
     
     return {"message": f"Scraper {source_name} started in background", "source": source_name}
+
+
+@app.post("/api/checkin/challenge", response_model=CheckInChallengeResponse)
+def checkin_challenge(payload: CheckInChallengeRequest, db: Session = Depends(get_db)):
+    event = db.query(Event).filter_by(id=payload.event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    nonce = secrets.token_urlsafe(16)
+    message = build_checkin_message(event.id, event.date, nonce)
+    return {"event_id": event.id, "nonce": nonce, "message": message}
+
+
+@app.post("/api/checkin/verify", response_model=CheckInVerifyResponse)
+def checkin_verify(payload: CheckInVerifyRequest, db: Session = Depends(get_db)):
+    event = db.query(Event).filter_by(id=payload.event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    expected_message = build_checkin_message(event.id, event.date, payload.nonce)
+    if payload.message != expected_message:
+        raise HTTPException(status_code=400, detail="Invalid check-in message")
+
+    if db.query(CheckIn).filter_by(nonce=payload.nonce).first():
+        raise HTTPException(status_code=409, detail="Nonce already used")
+
+    normalized = payload.wallet_address.strip().lower()
+    try:
+        recovered = Account.recover_message(
+            encode_defunct(text=payload.message), signature=payload.signature
+        )
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    if recovered.lower() != normalized:
+        raise HTTPException(status_code=401, detail="Signature does not match wallet")
+
+    existing = (
+        db.query(CheckIn)
+        .filter_by(event_id=event.id, wallet_address=normalized)
+        .first()
+    )
+    if existing:
+        return {
+            "status": "already_checked_in",
+            "checkin_id": existing.id,
+            "created_at": existing.created_at,
+        }
+
+    checkin = CheckIn(
+        event_id=event.id,
+        wallet_address=normalized,
+        message=payload.message,
+        signature=payload.signature,
+        nonce=payload.nonce,
+    )
+    db.add(checkin)
+    db.commit()
+    db.refresh(checkin)
+    return {
+        "status": "checked_in",
+        "checkin_id": checkin.id,
+        "created_at": checkin.created_at,
+    }
+
+
+@app.get("/api/checkin/status", response_model=CheckInStatusResponse)
+def checkin_status(
+    event_id: int = Query(...),
+    wallet_address: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    normalized = wallet_address.strip().lower()
+    checkin = (
+        db.query(CheckIn)
+        .filter_by(event_id=event_id, wallet_address=normalized)
+        .first()
+    )
+    if not checkin:
+        return {"status": "not_checked_in"}
+    return {
+        "status": "checked_in",
+        "checkin_id": checkin.id,
+        "created_at": checkin.created_at,
+    }

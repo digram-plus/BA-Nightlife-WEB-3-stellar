@@ -94,12 +94,12 @@ export function CheckInButton({ eventId }: CheckInButtonProps) {
 
   const disabled = !isConnected || status === 'loading' || status === 'checked';
   const buttonLabel = !isConnected
-    ? 'CONNECT WALLET TO CHECK-IN'
+    ? 'CONNECT WALLET'
     : status === 'loading'
     ? 'SIGNING...'
     : status === 'checked'
     ? 'CHECK-IN CONFIRMED'
-    : 'CHECK-IN (SIGN MESSAGE)';
+    : 'CHECK-IN (CONFIRM IN WALLET)';
 
   return (
     <div className="flex flex-col gap-2">
@@ -111,7 +111,7 @@ export function CheckInButton({ eventId }: CheckInButtonProps) {
         {buttonLabel}
       </button>
       <div className="border-2 border-white px-3 py-2 text-[10px] uppercase font-black">
-        OFF-CHAIN PROOF VIA WALLET SIGNATURE
+        PRIVATE CHECK-IN (NOT ON BLOCKCHAIN)
       </div>
       {status === 'error' && error && (
         <div className="text-xs text-red-300 font-bold">{error}</div>

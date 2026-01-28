@@ -65,6 +65,22 @@ export function TipButton({ walletAddress, artistName }: TipButtonProps) {
     ? 'CONFIRMED'
     : 'NOT CREATED';
 
+  const proofBody = (
+    <div className="flex flex-col items-center justify-center py-3">
+      <div className="flex items-center justify-between w-full px-4 text-[10px] font-black uppercase mb-1">
+        <span>ON-CHAIN PROOF</span>
+        <span
+          className={`px-1 py-0.5 ${txUrl ? 'bg-black text-white' : 'bg-[#2b2b2b] text-white/70'}`}
+        >
+          {proofStatus}
+        </span>
+      </div>
+      <div className="text-[12px] font-mono font-bold text-white/80">
+        {shortHash ? `TX: ${shortHash}` : 'SEND TIP ABOVE TO CREATE PROOF'}
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-4">
       <button
@@ -75,21 +91,20 @@ export function TipButton({ walletAddress, artistName }: TipButtonProps) {
         <Coins size={20} className="mr-3" />
         {isPending || isConfirming ? 'SENDING...' : `TIP 0.001 BNB`}
       </button>
-      {/* Button-like On-Chain Proof */}
-      <a
-        href={txUrl || '#'}
-        target={txUrl ? "_blank" : "_self"}
-        rel="noreferrer"
-        className={`nb-button w-full flex flex-col items-center justify-center py-3 !bg-black !text-[#a1ff00] no-underline transition-opacity border-[#a1ff00] ${!txUrl ? 'cursor-default opacity-80' : 'cursor-pointer hover:opacity-100'}`}
-      >
-        <div className="flex items-center justify-between w-full px-4 text-[10px] font-black uppercase mb-1">
-          <span>ON-CHAIN PROOF</span>
-          <span className="bg-[#a1ff00] text-black px-1 py-0.5">{proofStatus}</span>
+      {txUrl ? (
+        <a
+          href={txUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="w-full border-2 border-white bg-[#2a2a2a] no-underline transition-opacity hover:opacity-100"
+        >
+          {proofBody}
+        </a>
+      ) : (
+        <div className="w-full border-2 border-white bg-[#1d1d1d] opacity-70">
+          {proofBody}
         </div>
-        <div className="text-[12px] font-mono font-bold">
-          {shortHash ? `TX: ${shortHash}` : 'SEND TIP ABOVE TO CREATE PROOF'}
-        </div>
-      </a>
+      )}
       {isSuccess && (
         <div className="bg-black text-[#a1ff00] text-center font-black py-2 mt-4 border-2 border-black rotate-1">
           <p>BNB SENT! VIBES SECURED! 🥂</p>

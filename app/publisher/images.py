@@ -47,29 +47,38 @@ ALLOWED_IMAGE_CT = {"image/jpeg", "image/png", "image/webp"}
 
 async def get_event_media(ev: Event) -> Optional[BufferedInputFile]:
     """Return оригинальную афишу, если она есть, иначе сгенерированную карточку."""
-    media_url = getattr(ev, "media_url", None)
-    if media_url:
-        original = await _download_image(media_url)
-        if original:
-            return BufferedInputFile(original, filename="event.jpg")
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20), headers=HEADERS) as session:
+        media_url = getattr(ev, "media_url", None)
+        if media_url:
+            original = await _download_image(media_url, session=session)
+            if original:
+                return BufferedInputFile(original, filename="event.jpg")
 
-    portrait = await _get_event_portrait(ev)
-    generated = _render_event_card(ev, portrait)
-    if generated:
-        return BufferedInputFile(generated, filename="event.png")
+        portrait = await _get_event_portrait(ev, session=session)
+        generated = _render_event_card(ev, portrait)
+        if generated:
+            return BufferedInputFile(generated, filename="event.png")
     return None
 
 
-async def _download_image(url: str) -> Optional[bytes]:
+async def _download_image(url: str, session: Optional[aiohttp.ClientSession] = None) -> Optional[bytes]:
     try:
-        timeout = aiohttp.ClientTimeout(total=20)
-        async with aiohttp.ClientSession(timeout=timeout, headers=HEADERS) as session:
+        if session:
             async with session.get(url, ssl=SSL_CONTEXT) as resp:
                 if resp.status != 200:
                     return None
                 ctype = resp.headers.get("Content-Type", "") or ""
                 raw = await resp.read()
                 return _sanitize_image(raw, ctype)
+        else:
+            timeout = aiohttp.ClientTimeout(total=20)
+            async with aiohttp.ClientSession(timeout=timeout, headers=HEADERS) as session:
+                async with session.get(url, ssl=SSL_CONTEXT) as resp:
+                    if resp.status != 200:
+                        return None
+                    ctype = resp.headers.get("Content-Type", "") or ""
+                    raw = await resp.read()
+                    return _sanitize_image(raw, ctype)
     except Exception:
         return None
 
@@ -105,7 +114,7 @@ def _sanitize_image(raw: bytes, ctype: str) -> Optional[bytes]:
     return buf.getvalue()
 
 
-async def _get_event_portrait(ev: Event) -> Optional[bytes]:
+async def _get_event_portrait(ev: Event, session: Optional[aiohttp.ClientSession] = None) -> Optional[bytes]:
     queries: list[str] = []
     artist = getattr(ev, "artist", None)
     title = getattr(ev, "title", None)
@@ -122,7 +131,7 @@ async def _get_event_portrait(ev: Event) -> Optional[bytes]:
             continue
         urls = await asyncio.to_thread(search_images, query)
         for url in urls:
-            raw = await _download_image(url)
+            raw = await _download_image(url, session=session)
             if raw:
                 return raw
     return None

@@ -12,7 +12,7 @@ BA Nightlife is a live music discovery and tipping app for Buenos Aires. It aggr
 - Artist support wallets per event
 
 ## BNB Chain Proof
-- Example transaction: https://bscscan.com/tx/0x2b6b0f7de3531f88f039a0400dc135e911c27a0eb255b92da3277174f2693c94
+- On-chain transaction (wallet-to-wallet BNB transfer): https://bscscan.com/tx/0x2b6b0f7de3531f88f039a0400dc135e911c27a0eb255b92da3277174f2693c94
 
 ## Tech Stack
 - Backend: FastAPI, SQLAlchemy, Postgres

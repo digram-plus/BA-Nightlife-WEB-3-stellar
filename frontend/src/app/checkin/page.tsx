@@ -13,6 +13,33 @@ interface Event {
   venue?: string;
 }
 
+const MONTHS = [
+  'ene',
+  'feb',
+  'mar',
+  'abr',
+  'may',
+  'jun',
+  'jul',
+  'ago',
+  'sep',
+  'oct',
+  'nov',
+  'dic',
+];
+
+const formatFullDate = (value: string) => {
+  if (!value) {
+    return '';
+  }
+  const [year, month, day] = value.split('-').map(Number);
+  if (!year || !month || !day) {
+    return value;
+  }
+  const label = MONTHS[month - 1] || '';
+  return `${String(day).padStart(2, '0')} ${label} ${year}`;
+};
+
 export default function CheckInPage() {
   const searchParams = useSearchParams();
   const eventIdParam = searchParams.get('event_id');
@@ -52,15 +79,20 @@ export default function CheckInPage() {
           <div className="mb-6">
             <div className="text-xl font-black mb-2">{event.title}</div>
             <div className="text-sm font-bold">
-              {new Date(event.date).toLocaleDateString('es-AR', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric',
-              })}
-              {event.venue ? ` • ${event.venue}` : ''}
+              {formatFullDate(event.date)}{event.venue ? ` • ${event.venue}` : ''}
             </div>
           </div>
         )}
+        <div className="border-2 border-white p-4 mb-6 text-sm font-bold leading-relaxed">
+          <div className="text-xs uppercase font-black mb-2">Why check-in?</div>
+          <ul className="list-disc pl-4 space-y-1">
+            <li>Get access to photos, videos, or a playlist after the event.</li>
+            <li>Unlock perks or discounts for future events.</li>
+            <li>Join private chats or afterparty invites.</li>
+            <li>Help artists show real attendance (less spam, more trust).</li>
+            <li>Your check-in is private and not posted on the blockchain.</li>
+          </ul>
+        </div>
         {!loading && !error && event && <CheckInButton eventId={event.id} />}
       </div>
     </main>

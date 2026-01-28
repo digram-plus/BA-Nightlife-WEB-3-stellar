@@ -1,5 +1,6 @@
 import asyncio
 import os
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import Optional, cast
 
@@ -83,7 +84,22 @@ async def fetch_and_store(limit: Optional[int] = None, force_publish: bool = Fal
             for ch in _load_channels():
                 if limit and created >= limit:
                     break
-                async for msg in client.iter_messages(ch, limit=50):
+                cutoff = None
+                if os.getenv("TG_LOOKBACK_DAYS"):
+                    try:
+                        days = int(os.getenv("TG_LOOKBACK_DAYS", "0"))
+                        if days > 0:
+                            cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+                    except ValueError:
+                        cutoff = None
+
+                async for msg in client.iter_messages(ch, limit=200):
+                    if cutoff and getattr(msg, "date", None):
+                        msg_date = msg.date
+                        if msg_date.tzinfo is None:
+                            msg_date = msg_date.replace(tzinfo=timezone.utc)
+                        if msg_date < cutoff:
+                            break
                     if limit and created >= limit:
                         break
                         
@@ -132,9 +148,8 @@ async def fetch_and_store(limit: Optional[int] = None, force_publish: bool = Fal
                         source_link=f"https://t.me/{ch}/{msg.id}",
                         source_msg_id=msg.id,
                         media_url=None,
-                        status="published" if force_publish else "queued",
                         dedupe_hash=h,
-                        support_wallet="0x70997970C51812dc3A010C7d01b50e0d17dc79C8" if force_publish else None
+                        support_wallet="0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
                     )
                     db.add(ev)
                     db.flush() # Generate ID

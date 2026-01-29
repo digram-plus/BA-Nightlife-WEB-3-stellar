@@ -45,7 +45,6 @@ const formatFullDate = (value: string) => {
 function CheckInContent() {
   const searchParams = useSearchParams();
   const eventIdParam = searchParams.get('event_id');
-  const source = searchParams.get('source');
   const eventId = eventIdParam ? Number(eventIdParam) : NaN;
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(false);
@@ -103,12 +102,12 @@ function CheckInContent() {
         {!loading && !error && event && (
           <div className="space-y-8">
             <div className="space-y-4">
-              <div className="text-[10px] font-black uppercase text-white/40 tracking-wider">Web3 Support & Check-in</div>
+              <div className="text-[10px] font-black uppercase text-white/40 tracking-wider">Support the artist</div>
               <TipButton 
                 walletAddress={event.support_wallet || ""} 
                 artistName={event.title.split(' - ')[0]} 
               />
-              <CheckInButton eventId={event.id} source={source} />
+              <CheckInButton eventId={event.id} />
             </div>
             
             <div className="border-2 border-white/20 bg-black/20 p-3 text-center">

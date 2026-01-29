@@ -27,7 +27,7 @@ def _save_cache(data: dict) -> None:
         json.dump(data, fh, ensure_ascii=False)
 
 
-def _normalize_key(name: str | None) -> Optional[str]:
+def _normalize_key(name: Optional[str]) -> Optional[str]:
     if not name:
         return None
     normalized = normalize_title(name)
@@ -36,7 +36,7 @@ def _normalize_key(name: str | None) -> Optional[str]:
     return normalized or None
 
 
-def get_cached_genres(name: str | None) -> Optional[List[str]]:
+def get_cached_genres(name: Optional[str]) -> Optional[List[str]]:
     key = _normalize_key(name)
     if not key:
         return None
@@ -48,7 +48,7 @@ def get_cached_genres(name: str | None) -> Optional[List[str]]:
     return None
 
 
-def cache_artist_genres(name: str | None, genres: Iterable[str]) -> None:
+def cache_artist_genres(name: Optional[str], genres: Iterable[str]) -> None:
     if not name:
         return
     genres = [g for g in genres if g and g.lower() != "general"]

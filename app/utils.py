@@ -2,6 +2,7 @@ import hashlib
 import os
 import re
 from datetime import date as ddate, time as dtime, datetime
+from typing import Optional
 
 import dateparser
 import pytz
@@ -30,7 +31,7 @@ def normalize_title(s: str) -> str:
     return s
 
 
-def make_hash(title_norm: str, date_iso: str, venue: str | None) -> str:
+def make_hash(title_norm: str, date_iso: str, venue: Optional[str]) -> str:
     base = f"{title_norm}|{date_iso}|{(venue or '').lower()}"
     return hashlib.sha256(base.encode()).hexdigest()
 

@@ -30,14 +30,17 @@ body {
   box-shadow: 12px 12px 0px 0px #ffffff; /* Shadow grows significantly */
 }
 
+.nb-card-static:hover {
+  transform: none !important;
+  box-shadow: 4px 4px 0px 0px #ffffff !important;
+}
+
 .nb-button {
-  background: var(--color-primary);
   border: 3px solid #ffffff;
   box-shadow: 3px 3px 0px 0px #ffffff;
   font-weight: 800;
   text-transform: uppercase;
   transition: all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  color: #000000;
 }
 
 .nb-button:hover {
@@ -53,4 +56,13 @@ body {
 .nb-title {
   -webkit-text-stroke: 2px #ffffff;
   text-shadow: 4px 4px 0px #000000;
+}
+
+@keyframes pulse-green {
+  0%, 100% { color: rgba(255, 255, 255, 0.3); }
+  50% { color: #a1ff00; }
+}
+
+.animate-pulse-green {
+  animation: pulse-green 2s infinite ease-in-out;
 }

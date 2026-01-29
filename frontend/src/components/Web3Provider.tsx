@@ -8,8 +8,8 @@ import {
   darkTheme,
 } from '@rainbow-me/rainbowkit';
 import { WagmiProvider } from 'wagmi';
-import { bsc } from 'wagmi/chains';
-import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
+import { bsc, bscTestnet, opBNB, opBNBTestnet } from 'wagmi/chains';
+import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
 
 const walletConnectProjectId =
   process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? '';
@@ -23,7 +23,7 @@ if (!walletConnectProjectId) {
 const config = getDefaultConfig({
   appName: 'BA Nightlife',
   projectId: walletConnectProjectId,
-  chains: [bsc],
+  chains: [bscTestnet, opBNBTestnet, bsc, opBNB],
   ssr: true,
 });
 
@@ -33,7 +33,7 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider 
+        <RainbowKitProvider
           theme={darkTheme({
             accentColor: '#a1ff00',
             accentColorForeground: 'black',

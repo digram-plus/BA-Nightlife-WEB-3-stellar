@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Music, MapPin, Calendar, ExternalLink, Sparkles } from "lucide-react";
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { TipButton } from "@/components/TipButton";
 
 interface Event {
   id: number;
@@ -25,6 +25,7 @@ export default function Home() {
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
+  const router = useRouter();
 
   const MONTHS = [
     'ene',
@@ -113,7 +114,11 @@ export default function Home() {
       <button
         onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
         disabled={safePage === 1}
-        className={`px-3 py-1 text-[11px] font-black uppercase border-2 border-white ${safePage === 1 ? 'bg-black text-white/40' : 'bg-black text-white'}`}
+        className={`px-3 py-1 text-[11px] font-black uppercase border-2 transition-all nb-button ${
+          safePage === 1 
+            ? 'bg-[#2a2a2a] text-white/20 cursor-not-allowed border-gray-600 shadow-none transform-none' 
+            : 'bg-black text-white border-white hover:bg-[#a1ff00] hover:text-black'
+        }`}
       >
         Prev
       </button>
@@ -123,7 +128,11 @@ export default function Home() {
       <button
         onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
         disabled={safePage === totalPages}
-        className={`px-3 py-1 text-[11px] font-black uppercase border-2 border-white ${safePage === totalPages ? 'bg-black text-white/40' : 'bg-black text-white'}`}
+        className={`px-3 py-1 text-[11px] font-black uppercase border-2 transition-all nb-button ${
+          safePage === totalPages 
+            ? 'bg-[#2a2a2a] text-white/20 cursor-not-allowed border-gray-600 shadow-none transform-none' 
+            : 'bg-black text-white border-white hover:bg-[#a1ff00] hover:text-black'
+        }`}
       >
         Next
       </button>
@@ -180,7 +189,11 @@ export default function Home() {
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 w-full">
                 <button
                   onClick={() => setSelectedTags(new Set())}
-                  className={`py-3 text-[11px] font-black uppercase border-2 border-white transition-all nb-button w-full ${selectedTags.size === 0 ? 'bg-[#a1ff00] text-black' : 'bg-black text-white'}`}
+                  className={`py-3 text-[11px] font-black uppercase border-2 border-white transition-all nb-button w-full ${
+                    selectedTags.size === 0 
+                      ? 'bg-[#a1ff00] text-black' 
+                      : 'bg-[#2a2a2a] text-white/60 hover:bg-[#a1ff00] hover:text-black'
+                  }`}
                 >
                   All
                 </button>
@@ -198,7 +211,11 @@ export default function Home() {
                         return next;
                       });
                     }}
-                    className={`py-3 text-[11px] font-black uppercase border-2 border-white transition-all nb-button w-full ${selectedTags.has(tag) ? 'bg-[#a1ff00] text-black' : 'bg-black text-white'}`}
+                    className={`py-3 text-[11px] font-black uppercase border-2 border-white transition-all nb-button w-full ${
+                      selectedTags.has(tag) 
+                        ? 'bg-[#a1ff00] text-black' 
+                        : 'bg-[#2a2a2a] text-white/60 hover:bg-[#a1ff00] hover:text-black'
+                    }`}
                   >
                     {tag}
                   </button>
@@ -212,13 +229,21 @@ export default function Home() {
                 <div className="grid grid-cols-2 gap-4 w-full md:max-w-sm">
                   <button
                     onClick={() => setSortOrder('asc')}
-                    className={`py-3 text-[11px] font-black uppercase border-2 border-white nb-button w-full ${sortOrder === 'asc' ? 'bg-[#a1ff00] text-black' : 'bg-black text-white'}`}
+                    className={`py-3 text-[11px] font-black uppercase border-2 border-white nb-button w-full ${
+                      sortOrder === 'asc' 
+                        ? 'bg-[#a1ff00] text-black' 
+                        : 'bg-[#2a2a2a] text-white/60 hover:bg-[#a1ff00] hover:text-black'
+                    }`}
                   >
                     Soonest
                   </button>
                   <button
                     onClick={() => setSortOrder('desc')}
-                    className={`py-3 text-[11px] font-black uppercase border-2 border-white nb-button w-full ${sortOrder === 'desc' ? 'bg-[#a1ff00] text-black' : 'bg-black text-white'}`}
+                    className={`py-3 text-[11px] font-black uppercase border-2 border-white nb-button w-full ${
+                      sortOrder === 'desc' 
+                        ? 'bg-[#a1ff00] text-black' 
+                        : 'bg-[#2a2a2a] text-white/60 hover:bg-[#a1ff00] hover:text-black'
+                    }`}
                   >
                     Latest
                   </button>
@@ -246,84 +271,91 @@ export default function Home() {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
           {paginatedEvents.length > 0 ? paginatedEvents.map((event) => (
-            <div key={event.id} className="nb-card flex flex-col group h-full">
-              <div className="h-64 border-b-4 border-white relative">
-                {event.media_url ? (
-                  <img src={event.media_url} alt={event.title} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all" />
-                ) : (
-                  <div className="w-full h-full bg-[#ff3cff]" />
-                )}
-                <div className="absolute top-4 right-4 bg-black text-white px-4 py-1 font-black text-xs uppercase border-2 border-white z-10">
-                  {event.genres?.[0] || 'RAVE'}
-                </div>
+              <div 
+                key={event.id}
+                className="nb-card flex flex-col group h-full cursor-pointer transition-all active:scale-[0.98]"
+                onClick={() => router.push(`/checkin?event_id=${event.id}`)}
+              >
+                <div className="h-64 border-b-4 border-white relative">
+                  {event.media_url ? (
+                    <img src={event.media_url} alt={event.title} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all" />
+                  ) : (
+                    <div className="w-full h-full bg-[#ff3cff]" />
+                  )}
+                  <div className="absolute top-4 right-4 bg-black text-white px-4 py-1 font-black text-xs uppercase border-2 border-white z-10">
+                    {event.genres?.[0] || 'RAVE'}
+                  </div>
 
-                {/* AI Vibe "Floating Sticker" - Button-like design with rotation */}
-                {event.vibe_description && (
-                  <div className="absolute -bottom-6 -left-4 p-4 bg-[#a1ff00] border-[3px] border-white text-black transform rotate-1 transition-all group-hover:-rotate-2 shadow-[3px_3px_0px_0px_#ffffff] z-20 max-w-[80%]">
-                    <div className="flex items-center gap-1 mb-1 font-black text-[9px] uppercase tracking-tighter opacity-70">
-                      <Sparkles size={10} />
-                      Vibe Oracle
+                  {/* AI Vibe "Floating Sticker" - Button-like design with rotation */}
+                  {event.vibe_description && (
+                    <div className="absolute -bottom-6 -left-4 p-4 bg-[#a1ff00] border-[3px] border-white text-black transform rotate-1 transition-all group-hover:-rotate-2 shadow-[3px_3px_0px_0px_#ffffff] z-20 max-w-[80%]">
+                      <div className="flex items-center gap-1 mb-1 font-black text-[9px] uppercase tracking-tighter opacity-70">
+                        <Sparkles size={10} />
+                        Vibe Oracle
+                      </div>
+                      <p className="text-[11px] font-black italic leading-none line-clamp-2">
+                        "{event.vibe_description}"
+                      </p>
                     </div>
-                    <p className="text-[11px] font-black italic leading-none line-clamp-2">
-                      "{event.vibe_description}"
-                    </p>
-                  </div>
-                )}
-              </div>
-              <div className="p-8 flex-1 flex flex-col bg-[#1a1a1a]">
-                {/* Fixed height title container - 2 lines, bottom-aligned */}
-                <div className="h-20 flex flex-col justify-end mb-6">
-                  <h3 className="text-3xl font-black uppercase leading-[1.1] line-clamp-2 italic">{event.title}</h3>
+                  )}
                 </div>
-                
-                <div className="space-y-4 mb-8">
-                  <div className="flex items-center font-bold text-lg">
-                    <Calendar size={20} className="mr-3 fill-[#a1ff00]" />
-                    <span className="text-white py-0.5">{formatEventDate(event.date)}</span>
+                <div className="p-8 flex-1 flex flex-col bg-[#1a1a1a]">
+                  {/* Fixed height title container - 2 lines, bottom-aligned */}
+                  <div className="h-20 flex flex-col justify-end mb-6">
+                    <h3 className="text-3xl font-black uppercase leading-[1.1] line-clamp-2 italic">{event.title}</h3>
                   </div>
-                  <div className="flex items-center font-bold text-lg">
-                    <MapPin size={20} className="mr-3 fill-[#ffdb00]" />
-                    {event.venue ? (
-                      <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.venue)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="underline decoration-4 decoration-[#ff3cff]"
-                      >
-                        {event.venue}
-                      </a>
-                    ) : (
-                      <span className="underline decoration-4 decoration-[#ff3cff]">BUENOS AIRES</span>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="mt-auto flex flex-col gap-4">
-                  <a 
-                    href={event.source_link.startsWith('http') ? event.source_link : `https://${event.source_link}`} 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="nb-button text-center py-4 text-lg"
-                  >
-                    GET TICKETS
-                  </a>
                   
-                  {/* Web3 Tipping & Proof Section */}
-                  <TipButton 
-                    walletAddress={event.support_wallet || ""} 
-                    artistName={event.title.split(' - ')[0]} 
-                  />
-
-                  <a
-                    href={`/checkin?event_id=${event.id}`}
-                    className="text-[11px] font-black uppercase underline text-[#a1ff00] text-center"
-                  >
-                    CHECK-IN ON SITE (QR)
-                  </a>
-
+                  <div className="space-y-4 mb-8">
+                    <div className="flex items-center font-bold text-lg">
+                      <Calendar size={20} className="mr-3 fill-[#a1ff00]" />
+                      <span className="text-white py-0.5">{formatEventDate(event.date)}</span>
+                    </div>
+                    <div className="flex items-center font-bold text-lg">
+                      <MapPin size={20} className="mr-3 fill-[#ffdb00]" />
+                      {event.venue ? (
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.venue)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="underline decoration-4 decoration-[#ff3cff]"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {event.venue}
+                        </a>
+                      ) : (
+                        <span className="underline decoration-4 decoration-[#ff3cff]">BUENOS AIRES</span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="mt-auto flex flex-col gap-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <a 
+                        href={event.source_link.startsWith('http') ? event.source_link : `https://${event.source_link}`} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="nb-button text-center py-4 text-sm bg-[#a1ff00] text-black font-black"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        GET TICKETS
+                      </a>
+                      <a 
+                        href={`https://music.youtube.com/search?q=${encodeURIComponent(event.title.split(' - ')[0])}`} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="nb-button text-center py-4 text-sm bg-white text-black font-black"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        LISTEN
+                      </a>
+                    </div>
+                    
+                    <div className="text-center text-[9px] font-black uppercase tracking-widest mt-2 animate-pulse-green">
+                      Click card for more details & tips
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
           )) : (
             <div className="col-span-full text-center py-24 nb-card bg-[#ffdb00]">
               <Music size={64} className="mx-auto mb-6" />

@@ -1,6 +1,7 @@
 import logging
 import requests
 from datetime import datetime
+from typing import Optional
 from sqlalchemy.orm import Session
 
 from ..db import SessionLocal
@@ -16,7 +17,7 @@ API_URL = "https://catpass-production.up.railway.app/eventos"
 SITE_BASE = "https://catpass.net"
 
 
-def _parse_datetime(fecha: str | None, hora: str | None):
+def _parse_datetime(fecha: Optional[str], hora: Optional[str]):
     if fecha:
         try:
             dt = datetime.fromisoformat(fecha)

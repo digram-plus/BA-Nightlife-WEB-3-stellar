@@ -40,11 +40,9 @@ export function TipButton({ walletAddress, artistName }: TipButtonProps) {
     // For BNB Hackathon, we send native BNB
     sendTransaction({
       to: walletAddress as `0x${string}`,
-      value: parseEther('0.001'), // Default 0.001 BNB (~$0.60 USD)
+      value: parseEther('0.0000001'), // Reduced 1000x for ultra-low cost testing
     });
   };
-
-  if (!walletAddress) return null;
 
   const explorerBaseUrl =
     chainId === 56
@@ -81,17 +79,29 @@ export function TipButton({ walletAddress, artistName }: TipButtonProps) {
     </div>
   );
 
+  if (!walletAddress) {
+    return (
+      <button
+        disabled
+        className="nb-button w-full flex items-center justify-center py-4 bg-[#2a2a2a] text-white/40 border-white/10 cursor-not-allowed text-xs font-black uppercase"
+      >
+        <Coins size={16} className="mr-3 opacity-30" />
+        TIPS NOT SUPPORTED
+      </button>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <button
         onClick={handleTip}
         disabled={isPending || isConfirming}
-        className="nb-button w-full flex items-center justify-center py-4 bg-[#a1ff00] text-lg"
+        className="nb-button w-full flex items-center justify-center py-4 bg-[#a1ff00] text-black text-xs font-black uppercase hover:bg-[#b8ff33]"
       >
-        <Coins size={20} className="mr-3" />
-        {isPending || isConfirming ? 'SENDING...' : `TIP 0.001 BNB`}
+        <Coins size={16} className="mr-3" />
+        {isPending || isConfirming ? 'SENDING...' : `TIP 0.0000001 BNB`}
       </button>
-      {txUrl ? (
+      {txUrl && (
         <a
           href={txUrl}
           target="_blank"
@@ -100,10 +110,6 @@ export function TipButton({ walletAddress, artistName }: TipButtonProps) {
         >
           {proofBody}
         </a>
-      ) : (
-        <div className="w-full border-2 border-white bg-[#1d1d1d] opacity-70">
-          {proofBody}
-        </div>
       )}
       {isSuccess && (
         <div className="bg-black text-[#a1ff00] text-center font-black py-2 mt-4 border-2 border-black rotate-1">

@@ -7,6 +7,7 @@ import unicodedata
 import logging
 import json
 from urllib.parse import urljoin, urlparse
+from typing import Optional
 
 import requests
 from sqlalchemy.orm import Session
@@ -49,7 +50,7 @@ if not logger.handlers:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 
-def _parse_datetime(value: str | None):
+def _parse_datetime(value: Optional[str]):
     if not value:
         return None, None
     try:
@@ -73,7 +74,7 @@ def _collect_texts(*values: object) -> list[str]:
     return texts
 
 
-def _short_text(value, limit=255) -> str | None:
+def _short_text(value, limit=255) -> Optional[str]:
     """Return a string limited to the given length."""
     if not value:
         return None
@@ -119,7 +120,7 @@ def _best_value(data: dict, *keys, default=None):
     return default
 
 
-def _normalize_slug_candidate(value: object) -> str | None:
+def _normalize_slug_candidate(value: object) -> Optional[str]:
     if not value:
         return None
     if isinstance(value, dict):
@@ -153,7 +154,7 @@ def _normalize_slug_candidate(value: object) -> str | None:
     return candidate
 
 
-def _extract_slug(item: dict) -> str | None:
+def _extract_slug(item: dict) -> Optional[str]:
     candidates = (
         item.get("slug"),
         item.get("slugFriendly"),
@@ -188,7 +189,7 @@ def _extract_slug(item: dict) -> str | None:
 SLUG_CLEAN_RE = re.compile(r"[^a-z0-9]+")
 
 
-def _slugify(value: object) -> str | None:
+def _slugify(value: object) -> Optional[str]:
     if not value:
         return None
     text = str(value).strip()
@@ -204,12 +205,12 @@ def _slugify(value: object) -> str | None:
     return normalized or None
 
 
-def _normalize_media_url(value: object) -> str | None:
+def _normalize_media_url(value: object) -> Optional[str]:
     """Return absolute URL for media if available."""
     if not value:
         return None
 
-    url: str | None = None
+    url: Optional[str] = None
     if isinstance(value, str):
         url = value.strip()
     elif isinstance(value, dict):
@@ -228,7 +229,7 @@ def _normalize_media_url(value: object) -> str | None:
     return url
 
 
-def _build_event_link(item: dict, slug_override: str | None = None) -> str:
+def _build_event_link(item: dict, slug_override: Optional[str] = None) -> str:
     slug = slug_override or _extract_slug(item)
     if slug:
         if slug.startswith("http"):
@@ -248,7 +249,7 @@ def _build_event_link(item: dict, slug_override: str | None = None) -> str:
     return VENTI_BASE
 
 
-def _pick_best_link(session: requests.Session, item: dict, slug_hint: str | None) -> str:
+def _pick_best_link(session: requests.Session, item: dict, slug_hint: Optional[str]) -> str:
     candidates: list[str] = []
 
     # 1) slug из API/деталей
@@ -292,7 +293,7 @@ def _pick_best_link(session: requests.Session, item: dict, slug_hint: str | None
         seen.add(link)
         unique.append(link)
 
-    first_working: str | None = None
+    first_working: Optional[str] = None
     for link in unique:
         try:
             resp = session.get(link, timeout=10, allow_redirects=True)
@@ -315,7 +316,7 @@ def _pick_best_link(session: requests.Session, item: dict, slug_hint: str | None
     return unique[0] if unique else VENTI_BASE
 
 
-def _fetch_event_details(session: requests.Session, item: dict) -> dict | None:
+def _fetch_event_details(session: requests.Session, item: dict) -> Optional[dict]:
     candidates: list[str] = []
     for key in (
         "slug",
@@ -366,7 +367,7 @@ def _fetch_event_details(session: requests.Session, item: dict) -> dict | None:
     return None
 
 
-def _extract_og_image(url: str, session: requests.Session) -> str | None:
+def _extract_og_image(url: str, session: requests.Session) -> Optional[str]:
     """Try to pull og:image/twitter:image from the event page."""
     try:
         resp = session.get(url, timeout=15)

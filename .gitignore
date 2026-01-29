@@ -79,3 +79,8 @@ htmlcov/
 .pytest_cache/
 *.whl
 Passline*
+
+# Local caches
+storage/cache/
+storage/quota/
+storage/ocr_cache/

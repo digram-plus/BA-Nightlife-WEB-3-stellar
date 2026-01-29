@@ -97,7 +97,7 @@ def get_db():
         db.close()
 
 
-def require_scrape_key(x_api_key: str | None = Header(default=None, alias="X-API-Key")):
+def require_scrape_key(x_api_key: Optional[str] = Header(default=None, alias="X-API-Key")):
     if not SCRAPE_API_KEY:
         raise HTTPException(status_code=500, detail="SCRAPE_API_KEY not configured")
     if not x_api_key or x_api_key != SCRAPE_API_KEY:

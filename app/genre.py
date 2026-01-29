@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from functools import lru_cache
-from typing import Iterable, List, Sequence
+from typing import Iterable, List, Optional, Sequence
 
 from .config import Config
 from .services.google_search import search_music_genre_snippets
@@ -226,7 +226,7 @@ def _ensure_electronic(genres: set[str], combined_text: str) -> None:
         genres.add("electronic")
 
 
-def detect_genres(text: str, hints: list[str] | None = None) -> list[str]:
+def detect_genres(text: str, hints: Optional[list[str]] = None) -> list[str]:
     sources = [text] + (hints or [])
     combined_text = " ".join(filter(None, sources))
     combined_lower = combined_text.lower()

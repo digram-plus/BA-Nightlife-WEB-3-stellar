@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, time
-from typing import Iterable
+from typing import Iterable, Optional, Union
 from urllib.parse import quote_plus
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
@@ -18,11 +18,11 @@ GENRE_HOOKS: dict[str, str] = {
 }
 
 
-def _format_time(ev_time: time | None) -> str:
+def _format_time(ev_time: Optional[time]) -> str:
     return ev_time.strftime("%H:%M") if ev_time else ""
 
 
-def _format_genres(genres: Iterable[str] | None) -> str:
+def _format_genres(genres: Optional[Iterable[str]]) -> str:
     if not genres:
         return ""
     tags = []
@@ -34,7 +34,7 @@ def _format_genres(genres: Iterable[str] | None) -> str:
     return " ".join(tags)
 
 
-def _pick_hook(genres: Iterable[str] | None) -> str:
+def _pick_hook(genres: Optional[Iterable[str]]) -> str:
     for g in (genres or []):
         hook = GENRE_HOOKS.get(g.lower())
         if hook:
@@ -43,8 +43,8 @@ def _pick_hook(genres: Iterable[str] | None) -> str:
 
 
 def build_caption(ev: Event) -> str:
-    event_date: date | None = getattr(ev, "date", None)
-    event_time: time | None = getattr(ev, "time", None)
+    event_date: Optional[date] = getattr(ev, "date", None)
+    event_time: Optional[time] = getattr(ev, "time", None)
     genres = getattr(ev, "genres", None)
 
     lines: list[str] = [f"🎵 {ev.title}"]

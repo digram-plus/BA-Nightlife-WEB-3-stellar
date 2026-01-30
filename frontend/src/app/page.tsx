@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Music, MapPin, Calendar, ExternalLink, Sparkles } from "lucide-react";
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { OpenfortConnectButton } from '@/components/OpenfortConnectButton';
+import { CombinedConnectButton } from '@/components/CombinedConnectButton';
 import { OpenfortButton } from '@openfort/react';
 
 interface Event {
@@ -168,11 +168,7 @@ export default function Home() {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <OpenfortConnectButton />
-          <div className="h-8 w-[2px] bg-white/20 hidden md:block"></div>
-          <div className="nb-button hidden md:block">
-            <ConnectButton label="EXTERNAL WALLET" showBalance={false} chainStatus="none" accountStatus="address" />
-          </div>
+          <CombinedConnectButton />
         </div>
       </header>
 

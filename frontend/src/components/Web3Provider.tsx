@@ -62,6 +62,10 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
               AuthProvider.WALLET,
             ],
             enforceSupportedChains: false,
+            walletRecovery: {
+              allowedMethods: [RecoveryMethod.PASSWORD],
+              defaultMethod: RecoveryMethod.PASSWORD,
+            },
           }}
         >
           <RainbowKitProvider

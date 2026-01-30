@@ -24,6 +24,7 @@ export function OpenfortConnectButton() {
 
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [creationError, setCreationError] = useState<string | null>(null);
+  const [recoveryPassword, setRecoveryPassword] = useState('');
   const address = activeWallet?.address || wallets?.[0]?.address;
 
   // Track state changes for debugging
@@ -49,10 +50,15 @@ export function OpenfortConnectButton() {
   const handleCreateWallet = async () => {
     console.log('[OpenfortDebug] Manual wallet creation triggered...');
     setCreationError(null);
+    if (!recoveryPassword.trim()) {
+      setCreationError('Please enter your password');
+      return;
+    }
     try {
       const res = await createWallet({
         recovery: {
           recoveryMethod: RecoveryMethod.PASSWORD,
+          password: recoveryPassword.trim(),
         },
       });
       
@@ -128,6 +134,23 @@ export function OpenfortConnectButton() {
   if (isLoggingIn || (isAuthenticated && !address)) {
     return (
       <div className="flex flex-col items-end gap-2">
+        <div className="flex flex-col gap-2 w-full max-w-[260px]">
+          <input
+            type="password"
+            value={recoveryPassword}
+            onChange={(e) => {
+              setRecoveryPassword(e.target.value);
+              if (creationError) {
+                setCreationError(null);
+              }
+            }}
+            placeholder="Set a recovery password"
+            className="nb-card bg-black text-white border-2 border-[#a1ff00] px-3 py-2 text-xs font-bold uppercase tracking-widest"
+          />
+          <span className="text-[9px] text-white/60 uppercase tracking-widest">
+            Password is used to recover this wallet on new devices.
+          </span>
+        </div>
         <button
           onClick={!isWalletCreating && !creationError ? handleCreateWallet : undefined}
           disabled={isWalletCreating}

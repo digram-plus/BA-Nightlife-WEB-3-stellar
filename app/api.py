@@ -1,4 +1,5 @@
 import os
+import httpx
 from dotenv import load_dotenv
 import secrets
 from pathlib import Path
@@ -22,6 +23,9 @@ load_dotenv(dotenv_path=Path(__file__).resolve().parents[1] / ".env")
 logger = logging.getLogger("api")
 
 SCRAPE_API_KEY = os.getenv("SCRAPE_API_KEY")
+OPENFORT_SHIELD_SECRET_KEY = os.getenv("OPENFORT_SHIELD_SECRET_KEY")
+OPENFORT_SHIELD_ENCRYPTION_SHARE = os.getenv("OPENFORT_SHIELD_ENCRYPTION_SHARE")
+NEXT_PUBLIC_SHIELD_PUBLISHABLE_KEY = os.getenv("NEXT_PUBLIC_SHIELD_PUBLISHABLE_KEY")
 
 app = FastAPI(title="BA Nightlife API")
 
@@ -262,3 +266,37 @@ def checkin_status(
         "checkin_id": checkin.id,
         "created_at": checkin.created_at,
     }
+
+@app.post("/api/openfort/session")
+async def create_openfort_session():
+    """
+    Creates an encryption session for Openfort automatic wallet recovery.
+    This bridge is required to keep shield secret keys on the backend.
+    """
+    if not OPENFORT_SHIELD_SECRET_KEY or not OPENFORT_SHIELD_ENCRYPTION_SHARE:
+        logger.error("Openfort Shield keys not configured in .env")
+        raise HTTPException(status_code=500, detail="Openfort Shield keys not configured")
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://shield.openfort.io/project/encryption-session",
+                headers={
+                    "Content-Type": "application/json",
+                    "x-api-key": NEXT_PUBLIC_SHIELD_PUBLISHABLE_KEY or "",
+                    "x-api-secret": OPENFORT_SHIELD_SECRET_KEY,
+                },
+                json={
+                    "encryption_part": OPENFORT_SHIELD_ENCRYPTION_SHARE
+                }
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"Openfort Shield API error: {response.status_code} - {response.text}")
+                raise HTTPException(status_code=response.status_code, detail="Failed to create Openfort session")
+                
+            data = response.json()
+            return {"session": data.get("session")}
+    except Exception as e:
+        logger.exception("Exception while creating Openfort session")
+        raise HTTPException(status_code=500, detail=str(e))

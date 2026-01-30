@@ -4,6 +4,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Music, MapPin, Calendar, ExternalLink, Sparkles } from "lucide-react";
 import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { OpenfortConnectButton } from '@/components/OpenfortConnectButton';
+import { OpenfortButton } from '@openfort/react';
 
 interface Event {
   id: number;
@@ -156,20 +158,23 @@ export default function Home() {
 
   return (
     <main className="max-w-7xl mx-auto px-4 py-8 bg-[#0a0a0a] min-h-screen text-white">
-      {/* Header with Wallet Connect */}
-      <div className="flex justify-between items-center mb-16 px-2">
+      <header className="flex justify-between items-center mb-16 px-2">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 bg-[#a1ff00] p-1">
             <img src="/icon.png" alt="BA Nightlife Logo" className="w-full h-full object-contain" />
           </div>
-          <div className="hidden md:block bg-black text-[#a1ff00] px-4 py-1 border-2 border-white font-black text-sm uppercase tracking-widest -rotate-1">
+          <div className="flex items-center gap-4 text-xs font-black uppercase text-white tracking-widest bg-black px-4 py-2 border-2 border-white shadow-[4px_4px_0px_0px_#ffffff]">
             EST. 2026
           </div>
         </div>
-        <div className="nb-button">
-          <ConnectButton label="CONNECT WALLET" showBalance={false} chainStatus="none" accountStatus="address" />
+        <div className="flex items-center gap-4">
+          <OpenfortConnectButton />
+          <div className="h-8 w-[2px] bg-white/20 hidden md:block"></div>
+          <div className="nb-button hidden md:block">
+            <ConnectButton label="EXTERNAL WALLET" showBalance={false} chainStatus="none" accountStatus="address" />
+          </div>
         </div>
-      </div>
+      </header>
 
       <div className="flex flex-col items-center mb-24 text-center">
         <h1 className="text-8xl md:text-9xl font-black mb-6 tracking-tighter uppercase leading-none italic">

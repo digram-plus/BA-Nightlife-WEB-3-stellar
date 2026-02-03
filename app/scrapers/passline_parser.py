@@ -17,6 +17,7 @@ from ..db import SessionLocal
 from ..models import Event
 from ..genre import detect_genres
 from ..utils import normalize_title, make_hash, TZ
+# from ..services.n8n_service import push_event_to_n8n
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("passline")
@@ -115,15 +116,27 @@ def run(limit: int = None, force_publish: bool = False):
 
     logger.info(f"[passline] Found {len(cards)} cards on the page.")
 
+    # Sort cards by date before processing
+    card_with_dates = []
+    for item in cards:
+        date_div = item.select_one("div.event-date")
+        time_div = item.select_one("div.event-hours")
+        date_obj, time_obj = _parse_passline_date_time(date_div, time_div)
+        if date_obj:
+            card_with_dates.append((date_obj, time_obj, item))
+    
+    # Sort by date
+    card_with_dates.sort(key=lambda x: x[0])
+    
+    if limit:
+        card_with_dates = card_with_dates[:limit]
+
     db: Session = SessionLocal()
     created = 0
     updated = 0
     
     try:
-        for item in cards:
-            if limit and created >= limit:
-                break
-
+        for date_obj, time_obj, item in card_with_dates:
             # 1. Title
             title_el = item.select_one("p.card-title")
             if not title_el:
@@ -142,11 +155,7 @@ def run(limit: int = None, force_publish: bool = False):
             venue_el = item.select_one("small.card-location")
             venue_text = venue_el.get_text(strip=True) if venue_el else "Buenos Aires"
 
-            # 4. Date & Time
-            date_div = item.select_one("div.event-date")
-            time_div = item.select_one("div.event-hours")
-            date_obj, time_obj = _parse_passline_date_time(date_div, time_div)
-            
+            # 4. Date & Time (already parsed during sorting)
             if not date_obj:
                 continue
 
@@ -174,6 +183,7 @@ def run(limit: int = None, force_publish: bool = False):
                 if force_publish:
                     existing.status = "published"
                     existing.support_wallet = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+                    # push_event_to_n8n(existing)
                 elif existing.status == "skipped":
                      existing.status = "queued"
                 updated += 1
@@ -196,6 +206,8 @@ def run(limit: int = None, force_publish: bool = False):
                 support_wallet="0x70997970C51812dc3A010C7d01b50e0d17dc79C8" if force_publish else None
             )
             db.add(ev)
+            db.flush()
+            # push_event_to_n8n(ev)
             created += 1
 
         db.commit()

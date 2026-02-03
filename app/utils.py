@@ -15,7 +15,7 @@ TIME_REGEX = re.compile(
 )
 
 DATE_REGEX = re.compile(
-    r"\b([0-3]?\d)[/.-]([01]?\d)(?:[/.-]([0-9]{2,4}))?\b",
+    r"\b([0-3]?\d)[/.-]([01]?\d|ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)(?:[/.-]([0-9]{2,4}))?\b",
     re.IGNORECASE,
 )
 
@@ -70,7 +70,28 @@ def _parse_explicit_date(text: str):
         return None, None
 
     day = int(match.group(1))
-    month = int(match.group(2))
+    month_raw = match.group(2).lower()
+    
+    months_map = {
+        "ene": 1, "jan": 1,
+        "feb": 2,
+        "mar": 3,
+        "abr": 4, "apr": 4,
+        "may": 5,
+        "jun": 6,
+        "jul": 7,
+        "ago": 8, "aug": 8,
+        "sep": 9,
+        "oct": 10,
+        "nov": 11,
+        "dic": 12, "dec": 12
+    }
+    
+    if month_raw.isdigit():
+        month = int(month_raw)
+    else:
+        month = months_map.get(month_raw[:3], 1)
+
     year_raw = match.group(3)
 
     today = datetime.now(TZ).date()

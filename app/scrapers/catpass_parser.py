@@ -8,6 +8,7 @@ from ..db import SessionLocal
 from ..models import Event
 from ..genre import detect_genres
 from ..utils import normalize_title, make_hash, TZ
+# from ..services.n8n_service import push_event_to_n8n
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -52,27 +53,34 @@ def run(limit: int = None, force_publish: bool = False):
         logger.error(f"[catpass] Failed to fetch API: {exc}")
         return
 
+    # Collect and sort items by date before processing
+    items_with_dates = []
+    for item in events_payload:
+        if not isinstance(item, dict):
+            continue
+        fecha = item.get("fecha")
+        hora = item.get("hora")
+        date, time = _parse_datetime(fecha, hora)
+        if date:
+            items_with_dates.append((date, time, item))
+    
+    # Sort by date
+    items_with_dates.sort(key=lambda x: x[0])
+    
+    if limit:
+        items_with_dates = items_with_dates[:limit]
+
     db: Session = SessionLocal()
     created = 0
     updated = 0
     try:
-        for item in events_payload:
-            if limit and created >= limit:
-                break
-                
-            if not isinstance(item, dict):
-                continue
-
+        for date, time, item in items_with_dates:
             title = item.get("nombre")
             if not title:
                 continue
 
             descripcion = item.get("descripcion") or ""
-            fecha = item.get("fecha")
-            hora = item.get("hora")
-            date, time = _parse_datetime(fecha, hora)
-            if not date:
-                continue
+            # date, time already parsed during sorting
 
             venue = item.get("ubicacion") or None
             title_norm = normalize_title(title)
@@ -101,6 +109,7 @@ def run(limit: int = None, force_publish: bool = False):
                 if force_publish:
                     existing.status = "published"
                     existing.support_wallet = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+                    # push_event_to_n8n(existing)
                 elif existing.status == "skipped":
                     existing.status = "queued"
                 updated += 1
@@ -123,6 +132,8 @@ def run(limit: int = None, force_publish: bool = False):
                 support_wallet="0x70997970C51812dc3A010C7d01b50e0d17dc79C8" if force_publish else None
             )
             db.add(ev)
+            db.flush()
+            # push_event_to_n8n(ev)
             created += 1
 
         db.commit()

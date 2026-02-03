@@ -1,73 +1,63 @@
-# BA Nightlife Web3
+# BA Nightlife Bot (WEB 3 Edition) 🇦🇷🎵
 
-BA Nightlife is a live music discovery and tipping app for Buenos Aires. It aggregates underground events and lets fans tip artists with native BNB on BNB Chain.
+Ультимативный бот-агрегатор ночной жизни Буэнос-Айреса. Автоматический сбор событий, умная классификация по жанрам и хронологическая публикация в Telegram.
 
-## Hackathon
-- Event: Good Vibes Only Hackathon (BNB Chain)
-- Track: Touching Grass (real-world culture + onchain support)
+## 🚀 Основные функции
 
-## Core Features
-- Event aggregation from multiple sources
-- Wallet-based tipping (native BNB)
-- Artist support wallets per event
+### 1. Централизованная публикация в Telegram
 
-## BNB Chain Proof
-- On-chain transaction (wallet-to-wallet BNB transfer): https://bscscan.com/tx/0x2b6b0f7de3531f88f039a0400dc135e911c27a0eb255b92da3277174f2693c94
+- **Хронологический порядок**: Бот больше не постит ивенты хаотично. Все находки попадают в базу данных и публикуются строго по дате проведения события.
+- **Горизонт планирования (14 дней)**: Канал остается актуальным и чистым. Бот автоматически публикует анонсы только на ближайшие 2 недели, подгружая новые дни по мере приближения.
+- **Интеграция с n8n**: После каждой успешной публикации данные улетают в n8n для синхронизации с Google Календарем и внешними логами.
 
-## Tech Stack
-- Backend: FastAPI, SQLAlchemy, Postgres
-- Frontend: Next.js, RainbowKit, Wagmi, Tailwind
+### 2. Мультиканальный Скрапинг (AI & OCR)
 
-## Local Setup
+- **Instagram (Playwright)**: Продвинутый сбор данных из профилей (напр. @crobarclub).
+  - Обход логин-воллов через Embed-режим.
+  - Высокое разрешение скриншотов для точного OCR (распознавания текста на афишах).
+  - Понимание специфичных форматов дат (напр. "13.FEB").
+- **Telegram Scraper**: Мониторинг профильных каналов. Распознавание текста на прикрепленных изображениях с помощью OCR.
+- **Агрегаторы (API)**: Интеграция с крупнейшими билетными платформами Аргентины:
+  - Venti.live
+  - Catpass.net
+  - Passline (Semi-auto)
+  - Bombo (In development)
 
-### 1) Backend
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
+### 3. Умная классификация
 
-Create `.env` in repo root:
-```
-POSTGRES_DB=baevents
-POSTGRES_USER=ba
-POSTGRES_PASSWORD=ba_password
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
+- **Topic-based Distribution**: Автоматическое распределение ивентов по темам (фредам) в Telegram канале на основе жанра:
+  - 🔊 Techno / House
+  - 🎸 Rock / Indie
+  - 🎷 Jazz
+  - 🎤 Rap / Pop
+  - 🌐 General
+- **Genre Alerts**: Если бот не уверен в жанре, он отправляет уведомление администратору для ручной корректировки.
 
-TG_BOT_TOKEN=your_token
-TG_API_ID=0
-TG_API_HASH=
-TG_SESSION=ba_events_session
-TG_CHANNELS=AfishaBA,vista_argentina,buenosaires_afisha,TechnoLoversBA,eventosbsas
-TG_CHANNEL_ID=
+### 4. WEB 3 &Frontend
 
-# Protect scraper triggers
-SCRAPE_API_KEY=change_me
-```
+- **Next.js Dashboard**: Современный интерфейс для просмотра полного календаря событий (даже тех, что еще не попали в 14-дневный горизонт Telegram).
+- **Embedded Wallets**: Интеграция с Openfort для легкого входа через Google и создания смарт-кошельков.
 
-Run API:
-```bash
-uvicorn app.api:app --reload --port 8000
-```
+---
 
-### 2) Frontend
-```bash
-cd frontend
-npm install
-```
+## 🛠 Технологический стек
 
-Create `frontend/.env.local`:
-```
-NEXT_PUBLIC_API_URL=http://localhost:8000
-NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_walletconnect_project_id
-```
+- **Backend**: Python (FastAPI / APScheduler / SQLAlchemy)
+- **Database**: SQLite (Production-ready with proper session management)
+- **Scraping**: Playwright, EasyOCR, Beautiful Soup
+- **Frontend**: Next.js 14, Tailwind CSS, RainbowKit, Openfort
+- **Automation**: n8n Webhooks
 
-Run dev server:
-```bash
-npm run dev
-```
+---
 
-## Demo
-- Demo video: <ADD_X_LINK>
-- Project X account: https://x.com/BA_Nightlife
+## 📦 Быстрый старт
+
+1. Склонируйте репозиторий.
+2. Скопируйте `.env.example` в `.env` и заполните ключи (TG Token, N8N Webhook и т.д.).
+3. Установите зависимости: `pip install -r requirements.txt`.
+4. Запустите планировщик: `python3 -m app.scheduler`.
+5. Запустите фронтенд: `cd frontend && npm run dev`.
+
+---
+
+_Разработано для продвинутых тусовщиков и крипто-энтузиастов Аргентины._ 🇦🇷✨

@@ -17,6 +17,7 @@ from ..models import Event
 from ..genre import detect_genres
 from ..utils import normalize_title, make_hash, parse_date, TZ
 from ..config import Config
+# from ..services.n8n_service import push_event_to_n8n
 from .link_utils import (
     extract_canonical_html,
     extract_canonical_via_browser,
@@ -408,14 +409,9 @@ def run(limit: int = None, force_publish: bool = False):
     else:
         pages = max(1, math.ceil(total_items / PAGE_SIZE))
 
-    db: Session = SessionLocal()
-    created = 0
-    updated = 0
-    seen_hashes: dict[str, dict[str, object]] = {}
+    all_items = []
     try:
         for page in range(1, pages + 1):
-            if limit and (created + updated) >= limit:
-                break
             try:
                 resp = session.get(
                     API_URL,
@@ -424,13 +420,33 @@ def run(limit: int = None, force_publish: bool = False):
                 )
                 resp.raise_for_status()
                 data = resp.json()
+                items = data.get("events") or []
+                if not items:
+                    break
+                all_items.extend(items)
+                if len(all_items) > 500: # Fetch a reasonable amount
+                    break
             except Exception as exc:
                 print(f"[venti] Failed to fetch page {page}: {exc}")
                 continue
 
-            for item in data.get("events", []):
-                if limit and (created + updated) >= limit:
-                    break
+        # Sort all collected items by date
+        def get_item_date(it):
+            d_str = _best_value(it, "date", "startDate", "start_date")
+            dt = _parse_datetime(d_str)
+            return dt.date() if dt else datetime.max.date()
+
+        all_items.sort(key=get_item_date)
+        
+        if limit:
+            all_items = all_items[:limit]
+
+        db: Session = SessionLocal()
+        created = 0
+        updated = 0
+        seen_hashes: dict[str, dict[str, object]] = {}
+        
+        for item in all_items:
                 
                 title = item.get("name") or item.get("title")
                 if not title:
@@ -554,6 +570,7 @@ def run(limit: int = None, force_publish: bool = False):
                     if force_publish:
                         existing.status = "published"
                         existing.support_wallet = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+                        # push_event_to_n8n(existing)
                     elif existing.status == "skipped":
                         existing.status = "queued"
                     updated += 1
@@ -576,6 +593,8 @@ def run(limit: int = None, force_publish: bool = False):
                     support_wallet="0x70997970C51812dc3A010C7d01b50e0d17dc79C8" if force_publish else None
                 )
                 db.add(ev)
+                db.flush()
+                # push_event_to_n8n(ev)
                 created += 1
         db.commit()
         print(f"[venti] Added {created} new events, updated {updated}.")

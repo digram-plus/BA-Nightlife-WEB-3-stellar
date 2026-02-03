@@ -11,6 +11,7 @@ from ..genre import detect_genres
 from ..utils import normalize_title, make_hash, parse_date
 from ..services.ocr import extract_text
 from .link_utils import resolve_canonical_url
+# from ..services.n8n_service import push_event_to_n8n
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("bombo")
@@ -65,36 +66,43 @@ def run(limit: int = None, force_publish: bool = False):
     created = 0
     updated = 0
     try:
-        for slide in slides:
-            if limit and created >= limit:
-                break
-                
-            title_el = slide.select_one(".eael-entry-title")
+    # Collect and sort slides by date before processing
+    slides_with_dates = []
+    for slide in slides:
+        title_el = slide.select_one(".eael-entry-title")
+        time_el = slide.select_one("time")
+        if not title_el or not time_el:
+            continue
+            
+        title = title_el.get_text(strip=True)
+        date_str = time_el.get("datetime") or time_el.get_text(" ", strip=True)
+        
+        img_el = slide.select_one(".eael-entry-thumbnail img")
+        media_url = img_el.get("src") if img_el else None
+        meta_text = slide.get_text(" ", strip=True)
+        
+        # We need a rough date for sorting. Bombo usually lists events in order,
+        # but let's try to parse for safety.
+        # Note: parse_date might be slow if it uses LLM or OCR, so we'll 
+        # try to use just the date_str if available.
+        dt, tm = parse_date(date_str)
+        if dt:
+            slides_with_dates.append((dt, tm, slide, title, media_url, meta_text, date_str))
+    
+    # Sort by date
+    slides_with_dates.sort(key=lambda x: x[0])
+    
+    if limit:
+        slides_with_dates = slides_with_dates[:limit]
+
+    db: Session = SessionLocal()
+    created = 0
+    updated = 0
+    try:
+        for dt, tm, slide, title, media_url, meta_text, date_str in slides_with_dates:
             link_el = slide.select_one(".eael-grid-post-link")
-            time_el = slide.select_one("time")
-
-            if not title_el or not link_el or not time_el:
-                continue
-
-            title = title_el.get_text(strip=True)
-            link = link_el.get("href")
-            if link:
-                link = urljoin(BASE_SITE, link)
-            resolved_link = resolve_canonical_url(link) if link else None
-            source_link = resolved_link or link or BASE_SITE
-            date_str = time_el.get("datetime") or time_el.get_text(" ", strip=True)
-            meta_text = slide.get_text(" ", strip=True)
-
-            img_el = slide.select_one(".eael-entry-thumbnail img")
-            media_url = img_el.get("src") if img_el else None
-            ocr_text = extract_text(media_url) if media_url else ""
-
-            combined_text = " ".join(filter(None, [title, meta_text, ocr_text]))
-            dt, tm = parse_date(combined_text)
-            if not dt:
-                dt, tm = parse_date(date_str)
-            if not dt:
-                continue
+            link = link_el.get("href") if link_el else None
+            # ... rest of processing
 
             title_norm = normalize_title(title)
             dedupe = make_hash(title_norm, dt.isoformat(), None)
@@ -112,6 +120,7 @@ def run(limit: int = None, force_publish: bool = False):
                 if force_publish:
                     existing.status = "published"
                     existing.support_wallet = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8" # Demo wallet
+                    # push_event_to_n8n(existing)
                 elif existing.status == "skipped":
                     existing.status = "queued"
                 updated += 1
@@ -134,6 +143,8 @@ def run(limit: int = None, force_publish: bool = False):
                 support_wallet="0x70997970C51812dc3A010C7d01b50e0d17dc79C8" if force_publish else None
             )
             db.add(ev)
+            db.flush()
+            # push_event_to_n8n(ev)
             created += 1
 
         db.commit()

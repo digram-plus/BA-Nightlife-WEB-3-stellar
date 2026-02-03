@@ -3,9 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Music, MapPin, Calendar, ExternalLink, Sparkles } from "lucide-react";
-import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { CombinedConnectButton } from '@/components/CombinedConnectButton';
-import { OpenfortButton } from '@openfort/react';
 
 interface Event {
   id: number;
@@ -21,36 +19,6 @@ interface Event {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-const MOCK_EVENTS: Event[] = [
-  {
-    id: 1001,
-    title: "UNDERGROUND TECHNO VIBES",
-    date: new Date().toISOString(),
-    venue: "Palacio Alsina",
-    genres: ["Techno", "Rave"],
-    source_link: "https://www.passline.com",
-    vibe_description: "Dark, industrial, and high energy. Pure BA underground spirit."
-  },
-  {
-    id: 1002,
-    title: "NEO-BRUTALISM ROOFTOP",
-    date: new Date(Date.now() + 86400000).toISOString(),
-    venue: "Teatro Grand Rex",
-    genres: ["House", "Art"],
-    source_link: "https://www.venti.com.ar",
-    vibe_description: "Sunset colors mixed with deep bass. A sophisticated urban escape."
-  },
-  {
-    id: 1003,
-    title: "OPENFORT BUILDER RAVE",
-    date: new Date(Date.now() + 172800000).toISOString(),
-    venue: "C Complejo Art Media",
-    genres: ["Web3", "Electronic"],
-    source_link: "https://github.com/openfortxyz",
-    vibe_description: "Where code meets the beat. Boarding the next billion users."
-  }
-];
-
 export default function Home() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,21 +26,6 @@ export default function Home() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const router = useRouter();
-
-  const MONTHS = [
-    'ene',
-    'feb',
-    'mar',
-    'abr',
-    'may',
-    'jun',
-    'jul',
-    'ago',
-    'sep',
-    'oct',
-    'nov',
-    'dic',
-  ];
 
   const formatEventDate = (value: string) => {
     if (!value) {
@@ -93,17 +46,13 @@ export default function Home() {
     fetch(`${API_BASE}/api/events`)
       .then(res => res.json())
       .then(data => {
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           setEvents(data);
-        } else {
-          console.warn("No events found, using mock data for demo.");
-          setEvents(MOCK_EVENTS);
         }
         setLoading(false);
       })
       .catch(err => {
-        console.error("Failed to fetch events, using mock data fallback:", err);
-        setEvents(MOCK_EVENTS);
+        console.error("Failed to fetch events:", err);
         setLoading(false);
       });
   }, []);

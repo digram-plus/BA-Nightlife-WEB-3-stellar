@@ -84,3 +84,6 @@ Passline*
 storage/cache/
 storage/quota/
 storage/ocr_cache/
+*.png
+publisher.log
+__pycache__

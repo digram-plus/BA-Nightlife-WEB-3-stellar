@@ -1,6 +1,8 @@
 'use client';
 
 import React, { Suspense, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { CheckInButton } from '@/components/CheckInButton';
 import { TipButton } from '@/components/TipButton';
@@ -74,7 +76,16 @@ function CheckInContent() {
   return (
     <main className="max-w-3xl mx-auto px-6 py-10">
       <div className="nb-card nb-card-static p-8 bg-[#1a1a1a]">
-        <h1 className="text-4xl font-black uppercase mb-6 tracking-tight">Event Check-in</h1>
+        <div className="flex items-center justify-between gap-4 mb-6">
+          <h1 className="text-4xl font-black uppercase tracking-tight">Event Check-in</h1>
+          <Link
+            href="/"
+            className="nb-button bg-black text-[#a1ff00] border-2 border-[#a1ff00] px-4 py-2 text-xs font-black uppercase flex items-center gap-2"
+          >
+            <ArrowLeft size={14} />
+            Back
+          </Link>
+        </div>
         
         {loading && <p className="font-bold animate-pulse text-[#a1ff00]">Loading event details...</p>}
         {error && <p className="text-red-400 font-bold border-2 border-red-400 p-4 bg-red-400/10 mb-4">{error}</p>}

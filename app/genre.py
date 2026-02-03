@@ -19,6 +19,7 @@ GENRE_ORDER: Sequence[str] = (
     "pop",
     "indie",
     "metal",
+    "rap",
     "general",
 )
 
@@ -108,13 +109,29 @@ GENRE_KEYWORDS: dict[str, list[str]] = {
         "thrash",
         "black metal",
     ],
+    "rap": [
+        "rap",
+        "#rap",
+        "hip hop",
+        "hip-hop",
+        "trap",
+        "urban",
+        "reggaeton",
+        "freestyle",
+    ],
 }
 
-KEYWORD_PATTERNS: dict[str, re.Pattern[str]] = {
-    keyword: re.compile(rf"\b{re.escape(keyword)}\b", flags=re.IGNORECASE)
-    for keywords in GENRE_KEYWORDS.values()
-    for keyword in keywords
-}
+_patterns_built = False
+KEYWORD_PATTERNS: dict[str, re.Pattern[str]] = {}
+
+def get_keyword_patterns():
+    global _patterns_built
+    if not _patterns_built:
+        for genre, keywords in GENRE_KEYWORDS.items():
+            for keyword in keywords:
+                KEYWORD_PATTERNS[keyword] = re.compile(rf"\b{re.escape(keyword)}\b", flags=re.IGNORECASE)
+        _patterns_built = True
+    return KEYWORD_PATTERNS
 
 
 # Хардкод для повторяющихся артистов/серий мероприятий
@@ -128,6 +145,8 @@ ARTIST_GENRE: dict[str, Sequence[str]] = {
     "resistance": ("techno",),
     "franky rizado": ("house",),
     "franky rizardo": ("house",),
+    "duki": ("rap",),
+    "bizarrap": ("rap", "electronic"),
 }
 
 LASTFM_TAG_MAP: dict[str, Iterable[str]] = {
@@ -140,15 +159,17 @@ LASTFM_TAG_MAP: dict[str, Iterable[str]] = {
     "pop": ["pop", "dance pop", "latin pop"],
     "indie": ["indie", "indie pop", "indie rock", "alternative"],
     "metal": ["metal", "heavy metal", "death metal", "thrash metal"],
+    "rap": ["rap", "hip hop", "hip-hop", "trap", "reggaeton"],
 }
 
 
 def _match_keywords(text: str) -> set[str]:
     hits: set[str] = set()
     lowered = text.lower()
+    patterns = get_keyword_patterns()
     for genre, keywords in GENRE_KEYWORDS.items():
         for keyword in keywords:
-            pattern = KEYWORD_PATTERNS[keyword]
+            pattern = patterns[keyword]
             if pattern.search(lowered):
                 hits.add(genre)
                 break

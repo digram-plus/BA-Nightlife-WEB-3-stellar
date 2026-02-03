@@ -11,6 +11,7 @@ from ..config import Config
 from ..utils import TZ
 from .templates import build_caption, build_keyboard
 from .images import get_event_media
+from ..services.n8n_service import push_event_to_n8n
 
 # ✅ настрой логирование
 # ✅ настрой логирование
@@ -34,6 +35,8 @@ TOPIC_PRIORITY = [
     "pop",
     "indie",
     "metal",
+    "rap",
+    "jazz",
     "general",
 ]
 
@@ -140,18 +143,23 @@ async def run_publisher():
     """Основной цикл публикации очереди событий."""
     db: Session = SessionLocal()
     try:
+        from datetime import timedelta
         today = datetime.now(TZ).date()
+        horizon_date = today + timedelta(days=14)
+        
+        # Fetch events within the 14-day horizon, sorted by date
         events = (
             db.query(Event)
             .filter_by(status="queued")
             .filter(Event.date >= today)
-            .order_by(Event.date.asc())
+            .filter(Event.date <= horizon_date)
+            .order_by(Event.date.asc(), Event.id.asc())
             .limit(10)
             .all()
         )
     
         if not events:
-            print("⚠️ Нет событий со статусом 'queued'")
+            logging.info("No events within the 14-day horizon found.")
             return
 
         for ev in events:
@@ -161,6 +169,13 @@ async def run_publisher():
                 ev.published_msg_id = mid
                 ev.published_topic_id = tid
                 db.commit()
+                
+                # Push to n8n after successful Telegram post to keep calendar/logs in sync
+                try:
+                    push_event_to_n8n(ev)
+                except Exception as n8n_err:
+                    logging.warning(f"Failed to push {ev.title} to n8n: {n8n_err}")
+
                 logging.info(f"Опубликовано '{ev.title}' (msg_id={mid}, topic_id={tid})")
                 await asyncio.sleep(1.5)
             except Exception as e:

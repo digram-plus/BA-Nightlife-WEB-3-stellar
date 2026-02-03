@@ -11,7 +11,7 @@ from ..models import Event
 from ..genre import detect_genres
 from ..utils import normalize_title, make_hash, parse_date
 from ..services.ocr import extract_text_from_bytes
-from ..services.n8n_service import push_event_to_n8n
+# from ..services.n8n_service import push_event_to_n8n
 
 DEFAULT_CHANNELS = [
     "AfishaBA",
@@ -19,6 +19,12 @@ DEFAULT_CHANNELS = [
     "buenosaires_afisha",
     "TechnoLoversBA",
     "eventosbsas",
+    "v3underground",
+    "technoargentina",
+    "house_music_ba",
+    "raves_ba",
+    "electronic_ba",
+    "underground_ba",
 ]
 
 
@@ -77,13 +83,25 @@ async def fetch_and_store(limit: Optional[int] = None, force_publish: bool = Fal
     session_name = cast(str, session_name_raw)
 
     client = TelegramClient(session_name, api_id, api_hash)
+    
+    try:
+        await client.connect()
+    except Exception as e:
+        if "database is locked" in str(e).lower():
+            print(f"⚠️ Session '{session_name}' is locked by another process. Trying temporary session...")
+            temp_session = f"{session_name}_tmp_{os.getpid()}"
+            client = TelegramClient(temp_session, api_id, api_hash)
+            await client.start() # This might require phone/code if not logged in
+        else:
+            raise e
+
     async with client:
         db: Session = SessionLocal()
         created = 0
         try:
+        all_found_events = []
+        try:
             for ch in _load_channels():
-                if limit and created >= limit:
-                    break
                 cutoff = None
                 if os.getenv("TG_LOOKBACK_DAYS"):
                     try:
@@ -93,68 +111,101 @@ async def fetch_and_store(limit: Optional[int] = None, force_publish: bool = Fal
                     except ValueError:
                         cutoff = None
 
-                async for msg in client.iter_messages(ch, limit=200):
+                print(f"[telegram] Checking channel: {ch}")
+                async for msg in client.iter_messages(ch, limit=100):
                     if cutoff and getattr(msg, "date", None):
                         msg_date = msg.date
                         if msg_date.tzinfo is None:
                             msg_date = msg_date.replace(tzinfo=timezone.utc)
                         if msg_date < cutoff:
                             break
-                    if limit and created >= limit:
-                        break
                         
                     text = (msg.text or msg.message or "").strip()
                     if not text and not _is_image_message(msg):
                         continue
 
-                    date, time = parse_date(text) if text else (None, None)
-                    media_text = ""
-                    if not date and _is_image_message(msg):
-                        media_text = await _extract_media_text(msg)
+                    # Rough parse for sorting
+                    date_val, time_val = parse_date(text) if text else (None, None)
+                    if not date_val and _is_image_message(msg):
+                         # For sorting, we don't want to OCR everything yet as it's slow.
+                         # But to be accurate we might need to. Let's stick to text first for speed
+                         # or only OCR if text is missing.
+                         pass
 
-                    combined_text = " ".join(part for part in (text, media_text) if part)
-                    if not combined_text:
+                    if not date_val:
                         continue
+                    
+                    all_found_events.append({
+                        "msg": msg,
+                        "ch": ch,
+                        "date": date_val,
+                        "time": time_val,
+                        "text": text
+                    })
+            
+            # Sort by date
+            all_found_events.sort(key=lambda x: x["date"])
+            
+            if limit:
+                all_found_events = all_found_events[:limit]
+            
+            print(f"[telegram] Processing top {len(all_found_events)} upcoming events")
 
+            for item in all_found_events:
+                msg = item["msg"]
+                ch = item["ch"]
+                date = item["date"]
+                time = item["time"]
+                text = item["text"]
+                
+                media_text = ""
+                if not date and _is_image_message(msg): # Should not happen with current filter but for future proof
+                    media_text = await _extract_media_text(msg)
+
+                combined_text = " ".join(part for part in (text, media_text) if part)
+                if not combined_text:
+                    continue
+
+                if not date: # Fallback if first parse failed or we have media text now
+                    date, time = parse_date(combined_text)
                     if not date:
-                        date, time = parse_date(combined_text)
-                        if not date:
-                            continue
-
-                    base_title = text if text else media_text
-                    if not base_title:
-                        continue
-                    title = base_title.split("\n", 1)[0][:280]
-
-                    title_norm = normalize_title(title)
-                    h = make_hash(title_norm, date.isoformat(), None)
-                    existing = db.query(Event).filter_by(dedupe_hash=h).first()
-                    if existing:
-                        if force_publish:
-                            existing.status = "published"
-                            existing.support_wallet = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
                         continue
 
-                    genres = detect_genres(combined_text, hints=[title, ch, media_text])
-                    ev = Event(
-                        title=title,
-                        title_norm=title_norm,
-                        date=date,
-                        time=time,
-                        venue=None,
-                        genres=genres,
-                        source_type="telegram",
-                        source_name=ch,
-                        source_link=f"https://t.me/{ch}/{msg.id}",
-                        source_msg_id=msg.id,
-                        media_url=None,
-                        dedupe_hash=h,
-                        support_wallet="0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
-                    )
-                    db.add(ev)
-                    db.flush() # Generate ID
-                    push_event_to_n8n(ev)
-                    created += 1
+                base_title = text if text else media_text
+                if not base_title:
+                    continue
+                title = base_title.split("\n", 1)[0][:280]
+
+                title_norm = normalize_title(title)
+                h = make_hash(title_norm, date.isoformat(), None)
+                
+                existing = db.query(Event).filter_by(dedupe_hash=h).first()
+                if existing:
+                    if force_publish:
+                        existing.status = "published"
+                        existing.support_wallet = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+                    continue
+
+                genres = detect_genres(combined_text, hints=[title, ch, media_text])
+                ev = Event(
+                    title=title,
+                    title_norm=title_norm,
+                    date=date,
+                    time=time,
+                    venue=None,
+                    genres=genres,
+                    source_type="telegram",
+                    source_name=ch,
+                    source_link=f"https://t.me/{ch}/{msg.id}",
+                    source_msg_id=msg.id,
+                    media_url=None,
+                    dedupe_hash=h,
+                    support_wallet="0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+                )
+                db.add(ev)
+                db.flush() 
+                # push_event_to_n8n(ev)
+                created += 1
             db.commit()
         finally:
             db.close()

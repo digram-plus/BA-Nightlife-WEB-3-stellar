@@ -34,6 +34,10 @@ class Config:
     TOPIC_ELECTRONIC = int(os.getenv("TOPIC_ELECTRONIC", "0"))
     TOPIC_HOUSE = int(os.getenv("TOPIC_HOUSE", "0"))
     TOPIC_TECHNO = int(os.getenv("TOPIC_TECHNO", "0"))
+    TOPIC_RAP = int(os.getenv("TOPIC_RAP", "0"))
+    TOPIC_JAZZ = int(os.getenv("TOPIC_JAZZ", "0"))
+    TOPIC_TRANCE = int(os.getenv("TOPIC_TRANCE", "0"))
+    TOPIC_DNB = int(os.getenv("TOPIC_DNB", "0"))
 
     TOPIC_MAP = {
         "general": TOPIC_GENERAL,
@@ -45,6 +49,10 @@ class Config:
         "pop": TOPIC_POP,
         "indie": TOPIC_INDIE,
         "metal": TOPIC_METAL,
+        "rap": TOPIC_RAP,
+        "jazz": TOPIC_JAZZ,
+        "trance": TOPIC_TRANCE,
+        "dnb": TOPIC_DNB,
         "electronic": TOPIC_ELECTRONIC or TOPIC_GENERAL,
         "house": TOPIC_HOUSE or TOPIC_ELECTRONIC or TOPIC_GENERAL,
         "techno": TOPIC_TECHNO or TOPIC_ELECTRONIC or TOPIC_GENERAL,
@@ -66,3 +74,7 @@ class Config:
     OCR_SPACE_API_KEY = os.getenv("OCR_SPACE_API_KEY", "")
     VENTI_API_COOKIE = os.getenv("VENTI_API_COOKIE", "")
     VENTI_API_AUTH = os.getenv("VENTI_API_AUTH", "")
+
+    INSTAGRAM_PROFILES = os.getenv("INSTAGRAM_PROFILES", "")
+    INSTAGRAM_USER = os.getenv("INSTAGRAM_USER", "")
+    INSTAGRAM_PASSWORD = os.getenv("INSTAGRAM_PASSWORD", "")

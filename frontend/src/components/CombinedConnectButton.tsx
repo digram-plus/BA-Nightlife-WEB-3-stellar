@@ -1,10 +1,9 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useUser, useWallets, useSignOut, useOpenfort, useOAuth, useAuthCallback, RecoveryMethod } from '@openfort/react';
 import { OAuthProvider } from '@openfort/openfort-js';
-import { ChevronDown, LogOut, User, Chrome, Wallet, ShieldCheck, X } from 'lucide-react';
+import { ChevronDown, LogOut, User, Chrome, ShieldCheck, X } from 'lucide-react';
 
 export function CombinedConnectButton() {
   const [isOpen, setIsOpen] = useState(false);
@@ -151,50 +150,9 @@ export function CombinedConnectButton() {
                 Login with Google
               </button>
 
-              <div className="flex items-center gap-2 px-2">
-                <div className="h-[2px] flex-1 bg-white/20"></div>
-                <span className="text-[10px] font-black text-white/40 uppercase">Or</span>
-                <div className="h-[2px] flex-1 bg-white/20"></div>
+              <div className="text-[10px] font-black uppercase text-white/50 text-center">
+                Embedded Openfort wallet — no extension required.
               </div>
-
-              <ConnectButton.Custom>
-                {({ account, chain, openAccountModal, openChainModal, openConnectModal, mounted }) => {
-                  const ready = mounted;
-                  const connected = ready && account && chain;
-
-                  if (!connected) {
-                    return (
-                      <button
-                        onClick={openConnectModal}
-                        className="nb-button bg-[#ff3cff] text-white py-4 text-xs font-black uppercase flex items-center justify-center gap-3 hover:translate-x-[2px] hover:translate-y-[2px] shadow-none"
-                      >
-                        <Wallet size={18} />
-                        External Wallet
-                      </button>
-                    );
-                  }
-
-                  if (chain.unsupported) {
-                    return (
-                      <button onClick={openChainModal} className="nb-button bg-red-500 text-white py-4 text-xs font-black">
-                        Wrong Network
-                      </button>
-                    );
-                  }
-
-                  return (
-                    <div className="flex flex-col gap-2">
-                      <button
-                        onClick={openAccountModal}
-                        className="nb-button bg-black text-[#ff3cff] border-2 border-[#ff3cff] py-3 text-xs font-black flex items-center justify-center gap-2"
-                      >
-                        <Wallet size={14} />
-                        {account.displayName}
-                      </button>
-                    </div>
-                  );
-                }}
-              </ConnectButton.Custom>
             </>
           )}
         </div>

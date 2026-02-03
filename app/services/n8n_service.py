@@ -46,10 +46,12 @@ def push_event_to_n8n(event: Event):
         "youtube_music_url": youtube_music_url
     }
     
+    print(f"[n8n] Pushing event '{event.title}' to n8n...")
     try:
         response = requests.post(N8N_WEBHOOK_URL, json=payload)
-        print(f"Status Code: {response.status_code}")
-        print(f"Response Body: {response.text}")
+        print(f"[n8n] Result for '{event.title}': Status {response.status_code}")
+        if response.status_code != 200:
+            print(f"[n8n] Error Response: {response.text}")
         response.raise_for_status()
     except Exception as e:
-        print(f"Error pushing event to n8n: {e}")
+        print(f"[n8n] CRITICAL Error pushing event '{event.title}': {e}")

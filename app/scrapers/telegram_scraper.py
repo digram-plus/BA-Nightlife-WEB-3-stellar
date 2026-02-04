@@ -99,8 +99,7 @@ async def fetch_and_store(limit: Optional[int] = None, force_publish: bool = Fal
         db: Session = SessionLocal()
         created = 0
         try:
-        all_found_events = []
-        try:
+            all_found_events = []
             for ch in _load_channels():
                 cutoff = None
                 if os.getenv("TG_LOOKBACK_DAYS"):
@@ -109,7 +108,7 @@ async def fetch_and_store(limit: Optional[int] = None, force_publish: bool = Fal
                         if days > 0:
                             cutoff = datetime.now(timezone.utc) - timedelta(days=days)
                     except ValueError:
-                        cutoff = None
+                        pass
 
                 print(f"[telegram] Checking channel: {ch}")
                 async for msg in client.iter_messages(ch, limit=100):
@@ -118,22 +117,14 @@ async def fetch_and_store(limit: Optional[int] = None, force_publish: bool = Fal
                         if msg_date.tzinfo is None:
                             msg_date = msg_date.replace(tzinfo=timezone.utc)
                         if msg_date < cutoff:
-                            break
-                        
+                            break # stop if we reached the cutoff
+
                     text = (msg.text or msg.message or "").strip()
                     if not text and not _is_image_message(msg):
                         continue
 
                     # Rough parse for sorting
                     date_val, time_val = parse_date(text) if text else (None, None)
-                    if not date_val and _is_image_message(msg):
-                         # For sorting, we don't want to OCR everything yet as it's slow.
-                         # But to be accurate we might need to. Let's stick to text first for speed
-                         # or only OCR if text is missing.
-                         pass
-
-                    if not date_val:
-                        continue
                     
                     all_found_events.append({
                         "msg": msg,
@@ -143,7 +134,8 @@ async def fetch_and_store(limit: Optional[int] = None, force_publish: bool = Fal
                         "text": text
                     })
             
-            # Sort by date
+            # Filter and sort
+            all_found_events = [e for e in all_found_events if e["date"]]
             all_found_events.sort(key=lambda x: x["date"])
             
             if limit:

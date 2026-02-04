@@ -433,8 +433,9 @@ def run(limit: int = None, force_publish: bool = False):
         # Sort all collected items by date
         def get_item_date(it):
             d_str = _best_value(it, "date", "startDate", "start_date")
-            dt = _parse_datetime(d_str)
-            return dt.date() if dt else datetime.max.date()
+            d_tuple = _parse_datetime(d_str)
+            d_val = d_tuple[0] if d_tuple and d_tuple[0] else None
+            return d_val if d_val else datetime.max.date()
 
         all_items.sort(key=get_item_date)
         
@@ -599,7 +600,12 @@ def run(limit: int = None, force_publish: bool = False):
         db.commit()
         print(f"[venti] Added {created} new events, updated {updated}.")
     finally:
-        db.close()
+        try:
+            db.close()
+        except NameError:
+            pass
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

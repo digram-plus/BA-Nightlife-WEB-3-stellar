@@ -1,20 +1,57 @@
-from __future__ import annotations
-
+import html
+import random
 from datetime import date, time
-from typing import Iterable, Optional, Union
-from urllib.parse import quote_plus
 
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-
-from ..config import Config
-from ..models import Event
-
-
-GENRE_HOOKS: dict[str, str] = {
-    "trance": "Субботний uplifting сет и море света.",
-    "dnb": "Ломанные ритмы и массивный бас.",
-    "house": "Лёгкий грув и много танцев.",
-    "techno": "Гипнотический драйв до самого утра.",
+GENRE_HOOKS: dict[str, list[str]] = {
+    "trance": [
+        "Погружайся в атмосферу транса и мелодичных ритмов.",
+        "Субботний uplifting сет и море света.",
+        "Транс-путешествие, которое нельзя пропустить.",
+        "Магия транса перенесёт тебя в другое измерение."
+    ],
+    "dnb": [
+        "Ломанные ритмы и массивный бас.",
+        "Энергия драм-н-бейса до самого утра.",
+        "Готовься к мощному саунду и ломанному биту.",
+        "Для настоящих любителей баса и скорости."
+    ],
+    "house": [
+        "Лёгкий грув и много танцев.",
+        "Хаус-вайб для твоего идеального вечера.",
+        "Классические ритмы и современный саунд.",
+        "Танцуй под лучшие хаус-треки города."
+    ],
+    "techno": [
+        "Гипнотический драйв до самого утра.",
+        "Тёмный и мощный техно-ритм.",
+        "Для тех, кто любит пожёстче и погромче.",
+        "Погрузись в индустриальную эстетику ночи."
+    ],
+    "rock": [
+        "Живой звук и драйв рок-сцены.",
+        "Для фанатов гитарного соло и мощного вокала.",
+        "Рок-вечер, который разбудит твою энергию.",
+        "Настоящий дух свободы и живой музыки."
+    ],
+    "pop": [
+        "Главные хиты и яркое шоу.",
+        "Танцуй под любимые мелодии этого года.",
+        "Поп-вечеринка с незабываемой атмосферо.",
+        "Позитив, музыка и яркий свет."
+    ],
+    "rap": [
+        "Ритм улиц и топовый флоу.",
+        "Хип-хоп вайб и правильный кач.",
+        "Лучшие биты и читка до самого рассвета.",
+        "Urban style и музыка, которая качает."
+    ],
+    "general": [
+        "Бери друзей и залетай — будет жарко!",
+        "Не пропусти это событие — обещает быть круто.",
+        "Отличный повод выбраться и круто провести время.",
+        "Музыка, общение и море эмоций.",
+        "Будь в центре событий этой ночи!"
+    ]
 }
 
 
@@ -36,10 +73,18 @@ def _format_genres(genres: Optional[Iterable[str]]) -> str:
 
 def _pick_hook(genres: Optional[Iterable[str]]) -> str:
     for g in (genres or []):
-        hook = GENRE_HOOKS.get(g.lower())
-        if hook:
-            return hook
-    return "Бери друзей и залетай — будет жарко!"
+        hooks = GENRE_HOOKS.get(g.lower())
+        if hooks:
+            return random.choice(hooks)
+    return random.choice(GENRE_HOOKS["general"])
+
+
+def _format_date_ru(d: date) -> str:
+    months = [
+        "", "января", "февраля", "марта", "апреля", "мая", "июня",
+        "июля", "августа", "сентября", "октября", "ноября", "декабря"
+    ]
+    return f"{d.day} {months[d.month]}"
 
 
 def build_caption(ev: Event) -> str:
@@ -47,49 +92,55 @@ def build_caption(ev: Event) -> str:
     event_time: Optional[time] = getattr(ev, "time", None)
     genres = getattr(ev, "genres", None)
 
-    lines: list[str] = [f"🎵 {ev.title}"]
+    # 1. Title
+    # Escape title for HTML parse_mode
+    safe_title = html.escape(ev.title or "")
+    lines: list[str] = [f"<b>🎵 {safe_title}</b>"]
 
-    parts_location: list[str] = []
+    # 2. Location with Google Maps link
     venue = getattr(ev, "venue_address", None) or getattr(ev, "venue", None)
     if venue:
-        parts_location.append(venue)
-        city = getattr(ev, "city", None)
-        if city:
-            parts_location.append(city)
-    if parts_location:
-        lines.append(f"📍 {', '.join(parts_location)}")
+        venue_query = quote_plus(venue)
+        maps_url = f"https://www.google.com/maps/search/?api=1&query={venue_query}"
+        safe_venue = html.escape(venue)
+        lines.append(f"📍 <a href='{maps_url}'>{safe_venue}</a>")
 
-    if event_date or event_time:
-        date_str = event_date.strftime("%d %B %Y") if event_date else ""
+    # 3. Date & Time
+    if event_date:
+        date_str = _format_date_ru(event_date)
         time_str = ""
         if event_time and not (event_time.hour == 0 and event_time.minute == 0):
-            time_str = _format_time(event_time)
-        line = " ".join(part for part in (date_str, time_str) if part).strip()
-        if line:
-            lines.append(f"🗓 {line}")
+            time_str = f" в {_format_time(event_time)}"
+        lines.append(f"🗓 {date_str}{time_str}")
 
+    # 4. Other information (Hook/Description)
     hook = getattr(ev, "hook", None) or getattr(ev, "description", None)
+    if not hook:
+        hook = _pick_hook(genres)
+    
     if hook:
-        lines.append(f"🎶 {hook}")
-    else:
-        default_hook = _pick_hook(genres)
-        if default_hook:
-            lines.append(f"🎶 {default_hook}")
+        safe_hook = html.escape(hook)
+        lines.append(f"🎶 {safe_hook}")
 
+    # 5. Hashtags
     tags = _format_genres(genres)
     if tags:
-        lines.append(tags)
+        lines.append(f"\n{tags}")
 
     return "\n".join(lines)
 
 
 def build_keyboard(ev: Event) -> InlineKeyboardMarkup:
+    buttons = []
+    
     listen_url = getattr(ev, "artist_listen_url", None)
-    if not listen_url:
-        query = getattr(ev, "artist", None) or getattr(ev, "title", "")
-        listen_url = f"{Config.DEFAULT_LISTEN_BASE}{quote_plus(query)}"
-
-    buttons = [InlineKeyboardButton(text="🎧 Послушать", url=listen_url)]
+    artists = getattr(ev, "artists", None)
+    
+    if listen_url or artists:
+        if not listen_url:
+            query = " ".join(artists)
+            listen_url = f"{Config.DEFAULT_LISTEN_BASE}{quote_plus(query)}"
+        buttons.append(InlineKeyboardButton(text="🎧 Послушать", url=listen_url))
 
     ticket_url = getattr(ev, "ticket_url", None)
     button_label = "🎟 Купить билет"
@@ -97,9 +148,7 @@ def build_keyboard(ev: Event) -> InlineKeyboardMarkup:
         ticket_url = getattr(ev, "source_link", None) or getattr(ev, "source_url", None)
         button_label = "ℹ️ Подробнее"
 
-    if ticket_url:
-        buttons.append(InlineKeyboardButton(text=button_label, url=ticket_url))
-    elif Config.DEFAULT_INFO_URL:
-        buttons.append(InlineKeyboardButton(text="ℹ️ Подробнее", url=Config.DEFAULT_INFO_URL))
-
+    if not buttons:
+        return None
+        
     return InlineKeyboardMarkup(inline_keyboard=[buttons])

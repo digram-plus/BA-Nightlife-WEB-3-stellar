@@ -8,7 +8,13 @@ from urllib.parse import urljoin
 from ..db import SessionLocal
 from ..models import Event
 from ..genre import detect_genres
-from ..utils import normalize_title, make_hash, parse_date
+from ..utils import (
+    TZ,
+    make_hash,
+    normalize_title,
+    parse_date,
+    detect_city,
+)
 from ..services.ocr import extract_text
 from .link_utils import resolve_canonical_url
 # from ..services.n8n_service import push_event_to_n8n
@@ -118,20 +124,23 @@ def run(limit: int = None, force_publish: bool = False):
             if existing:
                 continue
 
-            genres = detect_genres(title)
+            genres, artists = detect_genres(title)
+            # venue_name is not available in this parser, so we pass None
+            venue_name = None
             ev = Event(
                 title=title,
                 title_norm=title_norm,
                 date=date,
                 time=time,
-                venue=None,
-                city="Buenos Aires",
+                venue=venue_name,
+                city=detect_city(" ".join(filter(None, [venue_name, title]))),
                 genres=genres,
+                artists=artists,
                 source_type="site",
                 source_name="bombo",
-                source_link=source_link,
+                source_link=link,
                 media_url=media_url,
-                dedupe_hash=dedupe,
+                dedupe_hash=h,
                 status="published" if force_publish else "queued",
                 support_wallet="0x70997970C51812dc3A010C7d01b50e0d17dc79C8" if force_publish else None
             )

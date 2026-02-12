@@ -23,6 +23,14 @@ GENRE_ORDER: Sequence[str] = (
     "general",
 )
 
+ARTIST_NAME_BLACKLIST: set[str] = {
+    "ENTRADAS", "AGOTADAS", "TICKETS", "PASSLINE", "VENTI", "BOMBO",
+    "BLACK CREAM", "FIESTA", "PARTY", "EVENTO", "SEASON", "SUMMER", "WINTER",
+    "EDITION", "PRESENTA", "INVITA", "BUENOS AIRES", "PALERMO", "CAPITAL",
+    "PROYECTO ABORIGEN", "PROYECTO", "ABORIGEN", "AFISHA", "AFICHA",
+    "NOT WELCOME CLUB", "NOT WELCOME", "WELCOME CLUB",
+}
+
 ELECTRONIC_SUBGENRES = {"trance", "house", "techno", "dnb"}
 
 GENRE_KEYWORDS: dict[str, list[str]] = {
@@ -50,6 +58,7 @@ GENRE_KEYWORDS: dict[str, list[str]] = {
         "house",
         "#house",
         "house music",
+        "houseparty",
         "deep house",
         "deep-house",
         "tech house",
@@ -111,12 +120,13 @@ GENRE_KEYWORDS: dict[str, list[str]] = {
     ],
     "rap": [
         "rap",
-        "#rap",
         "hip hop",
         "hip-hop",
         "trap",
         "urban",
+        "musica urbana",
         "reggaeton",
+        "dembow",
         "freestyle",
     ],
 }
@@ -145,6 +155,10 @@ ARTIST_GENRE: dict[str, Sequence[str]] = {
     "resistance": ("techno",),
     "franky rizado": ("house",),
     "franky rizardo": ("house",),
+    "bodeler": ("house", "techno"),
+    "solomun": ("house",),
+    "maceo plex": ("techno",),
+    "tale of us": ("techno",),
     "duki": ("rap",),
     "bizarrap": ("rap", "electronic"),
 }
@@ -160,6 +174,8 @@ LASTFM_TAG_MAP: dict[str, Iterable[str]] = {
     "indie": ["indie", "indie pop", "indie rock", "alternative"],
     "metal": ["metal", "heavy metal", "death metal", "thrash metal"],
     "rap": ["rap", "hip hop", "hip-hop", "trap", "reggaeton"],
+    "r&b": ["r&b", "rhythm and blues", "soul"],
+    "urbana": ["musica urbana", "urban music", "reggaeton", "dembow", "trap argentino", "rkt", "turreo"],
 }
 
 
@@ -204,25 +220,44 @@ def _map_lastfm_tags(tags: Iterable[str]) -> set[str]:
 UPPERCASE_PATTERN = re.compile(r"\b([A-Z][A-Z0-9 .'\-]{2,})\b")
 
 
-def _candidate_names(hints: Iterable[str]) -> List[str]:
+def _candidate_names(hints: Iterable[str], exclude: Optional[str] = None) -> List[str]:
     candidates: List[str] = []
     seen: set[str] = set()
-    splitter = re.compile(r"[-–/,|•()\n\r]|\b(?:b2b|feat\.?|ft\.?|vs\.?|x)\b", re.IGNORECASE)
+    
+    # Titles or paths to normalize for exclusion check
+    exclude_norm = exclude.strip().lower() if exclude else None
+    
+    splitter = re.compile(r"[-–/,|•()\n\r]|\b(?:b2b|feat\.?|ft\.?|vs\.?|x|presents|invita|hosts)\b", re.IGNORECASE)
     for hint in hints:
         if not hint:
             continue
+        # Split by common separators
         for part in splitter.split(hint):
             name = part.strip()
             if name and len(name) > 1:
                 lowered = name.lower()
-                if lowered not in seen:
+                # Exclude if it's the main title or in blacklist
+                if exclude_norm and lowered == exclude_norm:
+                    continue
+                
+                # If it's too long (more than 3 words) it's likely a title/sentence, not an artist
+                if len(name.split()) > 3:
+                     continue
+
+                if lowered not in seen and name.upper() not in ARTIST_NAME_BLACKLIST:
                     seen.add(lowered)
                     candidates.append(name)
+        
+        # Also look for uppercase matches as candidates
         for match in UPPERCASE_PATTERN.findall(hint):
             name = match.strip()
             if name and len(name) > 1:
                 lowered = name.lower()
-                if lowered not in seen:
+                if exclude_norm and lowered == exclude_norm:
+                    continue
+                if len(name.split()) > 3:
+                     continue
+                if lowered not in seen and name.upper() not in ARTIST_NAME_BLACKLIST:
                     seen.add(lowered)
                     candidates.append(name)
     return candidates
@@ -247,18 +282,16 @@ def _ensure_electronic(genres: set[str], combined_text: str) -> None:
         genres.add("electronic")
 
 
-def detect_genres(text: str, hints: Optional[list[str]] = None) -> list[str]:
+def detect_genres(text: str, hints: Optional[list[str]] = None) -> tuple[list[str], list[str]]:
     sources = [text] + (hints or [])
     combined_text = " ".join(filter(None, sources))
     combined_lower = combined_text.lower()
 
     genres: set[str] = set()
-    candidate_names = _candidate_names(sources)
-
-    for name in candidate_names:
-        cached = get_cached_genres(name)
-        if cached:
-            return _normalize(cached)
+    
+    # Only search for artists in the primary title (text) to avoid descriptions/locations polluting search
+    title_to_exclude = text if text and len(text) > 3 else None
+    candidate_names = _candidate_names([text], exclude=title_to_exclude)
 
     # 1. прямое совпадение артистов/брендов
     for artist, preset in ARTIST_GENRE.items():
@@ -271,8 +304,8 @@ def detect_genres(text: str, hints: Optional[list[str]] = None) -> list[str]:
             continue
         genres.update(_match_keywords(chunk))
 
-    # 3. Last.fm
-    if Config.LASTFM_API_KEY:
+    # 3. Last.fm fallback
+    if Config.LASTFM_API_KEY and not genres:
         for name in candidate_names:
             tags = fetch_top_tags(name)
             mapped = _map_lastfm_tags(tags)
@@ -293,8 +326,7 @@ def detect_genres(text: str, hints: Optional[list[str]] = None) -> list[str]:
                 genres.update(hits)
                 break
 
-    if genres:
-        _ensure_electronic(genres, combined_lower)
-        return _normalize(genres)
-
-    return ["general"]
+    final_genres = _normalize(genres) if genres else ["general"]
+    _ensure_electronic(set(final_genres), combined_lower)
+    
+    return final_genres, candidate_names

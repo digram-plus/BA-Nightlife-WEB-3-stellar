@@ -113,14 +113,16 @@ async def publish_once(ev: Event):
                         photo=media,
                         caption=caption[:1024],
                         message_thread_id=topic_id if topic_id else None,
-                        reply_markup=kb
+                        reply_markup=kb,
+                        parse_mode="HTML"
                     )
                 else:
                     msg = await BOT.send_message(
                         chat_id=CHANNEL,
                         text=caption[:4096],
                         message_thread_id=topic_id if topic_id else None,
-                        reply_markup=kb
+                        reply_markup=kb,
+                        parse_mode="HTML"
                     )
                 break
             except TelegramRetryAfter as exc:
@@ -144,17 +146,18 @@ async def run_publisher():
     db: Session = SessionLocal()
     try:
         from datetime import timedelta
-        today = datetime.now(TZ).date()
-        horizon_date = today + timedelta(days=14)
-        
-        # Fetch events within the 14-day horizon, sorted by date
+        # Fetch events within the 14-day horizon, filtered by city and retry status
         events = (
             db.query(Event)
-            .filter_by(status="queued")
+            .filter(Event.status == "queued")
+            .filter(Event.city == "Buenos Aires")
             .filter(Event.date >= today)
             .filter(Event.date <= horizon_date)
+            .filter(
+                (Event.next_retry_at == None) | (Event.next_retry_at <= datetime.now(TZ))
+            )
             .order_by(Event.date.asc(), Event.id.asc())
-            .limit(10)
+            .limit(15)
             .all()
         )
     
@@ -172,16 +175,24 @@ async def run_publisher():
                 
                 # Push to n8n after successful Telegram post to keep calendar/logs in sync
                 try:
-                    push_event_to_n8n(ev)
+                    await push_event_to_n8n(ev)
                 except Exception as n8n_err:
                     logging.warning(f"Failed to push {ev.title} to n8n: {n8n_err}")
 
                 logging.info(f"Опубликовано '{ev.title}' (msg_id={mid}, topic_id={tid})")
                 await asyncio.sleep(1.5)
             except Exception as e:
-                ev.status = "skipped"
+                ev.retry_count += 1
+                if ev.retry_count > 5:
+                    ev.status = "skipped"
+                    logging.error(f"❌ '{ev.title}' окончательно пропущен после {ev.retry_count} попыток: {e}")
+                else:
+                    # Exponential backoff: 5m, 15m, 45m, 2h, 6h...
+                    delay_minutes = 5 * (3 ** (ev.retry_count - 1))
+                    ev.next_retry_at = datetime.now(TZ) + timedelta(minutes=delay_minutes)
+                    logging.warning(f"⚠️ Ошибка публикации '{ev.title}' (попытка {ev.retry_count}): {e}. Следующая попытка через {delay_minutes} мин.")
+                
                 db.commit()
-                print(f"⛔ Пропущено '{ev.title}': {e}")
 
     finally:
         db.close()

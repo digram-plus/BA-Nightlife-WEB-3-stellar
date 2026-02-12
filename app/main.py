@@ -27,12 +27,25 @@ async def main():
     config = uvicorn.Config(fastapi_app, host="0.0.0.0", port=8000, log_level="info")
     server = uvicorn.Server(config)
     
-    # Параллельно запускаем шедулер, телеграм-бота и API
-    scheduler_task = asyncio.create_task(start_scheduler())
-    bot_task = asyncio.create_task(dp.start_polling(bot))
-    api_task = asyncio.create_task(server.serve())
+    # Параллельно запускаем шедулер, телеграм-бота и API с контролем ошибок
+    tasks = [
+        asyncio.create_task(start_scheduler(), name="Scheduler"),
+        asyncio.create_task(dp.start_polling(bot), name="Telegram Bot"),
+        asyncio.create_task(server.serve(), name="API Server"),
+    ]
     
-    await asyncio.gather(scheduler_task, bot_task, api_task)
+    # Wait for any task to fail
+    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_EXCEPTION)
+    
+    for task in done:
+        if task.exception():
+            name = task.get_name()
+            err = task.exception()
+            print(f"❌ Critical failure in {name}: {err}")
+            
+    # Terminate others
+    for task in pending:
+        task.cancel()
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -150,7 +150,7 @@ async def scrape_profile(context, profile_name, limit=15, force_publish=False):
                             logger.info(f"Updated image for existing event: {existing.title}")
                         continue
 
-                    genres = detect_genres(combined_text, hints=[title, profile_name])
+                    genres, artists = detect_genres(combined_text, hints=[title, profile_name])
                     
                     # Get post link
                     link = "https://www.instagram.com"

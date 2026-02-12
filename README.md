@@ -25,7 +25,7 @@
   - Passline (Semi-auto)
   - Bombo (In development)
 
-### 3. Умная классификация
+### 3. Умная классификацияу
 
 - **Topic-based Distribution**: Автоматическое распределение ивентов по темам (фредам) в Telegram канале на основе жанра:
   - 🔊 Techno / House
@@ -60,7 +60,7 @@
 ## 🛠 Технологический стек
 
 - **Backend**: Python (FastAPI / APScheduler / SQLAlchemy)
-- **Database**: SQLite (Production-ready with proper session management)
+- **Database**: PostgreSQL (with Alembic migrations)
 - **Scraping**: Playwright, EasyOCR, Beautiful Soup
 - **Frontend**: Next.js 14, Tailwind CSS, RainbowKit, Openfort
 - **Automation**: n8n Webhooks
@@ -70,9 +70,14 @@
 ## 📦 Быстрый старт
 
 1. Склонируйте репозиторий.
-2. Скопируйте `.env.example` в `.env` и заполните ключи (TG Token, N8N Webhook и т.д.).
+2. Скопируйте `.env.example` в `.env` и заполните ключи (Postgres, TG Token, N8N Webhook и т.д.).
 3. Установите зависимости: `pip install -r requirements.txt`.
-4. Запустите планировщик: `python3 -m app.scheduler`.
+4. Запустите всё (API + Бот + Шедулер):
+
+```bash
+python3 -m app.main
+```
+
 5. Запустите фронтенд: `cd frontend && npm run dev`.
 
 ---

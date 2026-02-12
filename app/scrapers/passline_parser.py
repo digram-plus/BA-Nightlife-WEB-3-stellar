@@ -16,7 +16,13 @@ from sqlalchemy.orm import Session
 from ..db import SessionLocal
 from ..models import Event
 from ..genre import detect_genres
-from ..utils import normalize_title, make_hash, TZ
+from ..utils import (
+    TZ,
+    make_hash,
+    normalize_title,
+    parse_date,
+    detect_city,
+)
 # from ..services.n8n_service import push_event_to_n8n
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -173,13 +179,15 @@ def run(limit: int = None, force_publish: bool = False):
             title_norm = normalize_title(title)
             dedupe = make_hash(title_norm, date_obj.isoformat(), venue_text)
             
-            genres = detect_genres(title + " " + (venue_text or ""))
+            genres, artists = detect_genres(title, hints=[venue_text])
 
             existing = db.query(Event).filter_by(dedupe_hash=dedupe).first()
             if existing:
                 existing.source_link = source_link
                 existing.media_url = media_url if media_url else existing.media_url
                 existing.time = time_obj or existing.time
+                existing.genres = genres
+                existing.artists = artists
                 if force_publish:
                     existing.status = "published"
                     existing.support_wallet = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
@@ -195,8 +203,9 @@ def run(limit: int = None, force_publish: bool = False):
                 date=date_obj,
                 time=time_obj,
                 venue=venue_text,
-                city="Buenos Aires",
+                city=detect_city(" ".join(filter(None, [venue_text, title]))),
                 genres=genres,
+                artists=artists,
                 source_type="site",
                 source_name="passline",
                 source_link=source_link,

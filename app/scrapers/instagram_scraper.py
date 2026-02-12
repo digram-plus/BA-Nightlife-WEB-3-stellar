@@ -66,7 +66,7 @@ def run(limit: int = 10, force_publish: bool = False):
                     if existing:
                         continue
 
-                    genres = detect_genres(caption, hints=[title, profile_name])
+                    genres, artists = detect_genres(caption, hints=[title, profile_name])
                     
                     ev = Event(
                         title=title,
@@ -75,6 +75,7 @@ def run(limit: int = 10, force_publish: bool = False):
                         time=time_obj,
                         venue=profile_name, # Fallback
                         genres=genres,
+                        artists=artists,
                         source_type="instagram",
                         source_name=profile_name,
                         source_link=f"https://www.instagram.com/p/{post.shortcode}/",
@@ -84,7 +85,6 @@ def run(limit: int = 10, force_publish: bool = False):
                     )
                     db.add(ev)
                     db.flush()
-                    push_event_to_n8n(ev)
                     created += 1
                     count += 1
                     

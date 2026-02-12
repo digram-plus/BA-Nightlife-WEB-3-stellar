@@ -122,3 +122,26 @@ def _parse_explicit_date(text: str):
             time_obj = dtime(int(time_match.group(3)), 0)
 
     return candidate, time_obj
+
+
+def detect_city(text: str) -> str:
+    """
+    Detects the city name from text.
+    Defaults to "Buenos Aires".
+    """
+    text_lower = (text or "").lower()
+    
+    cities = {
+        "La Plata": ["la plata", "lp", "ensenada", "berisso"],
+        "Cordoba": ["cordoba", "córdoba", "cba"],
+        "Mendoza": ["mendoza", "mza", "luján de cuyo", "maipú"],
+        "Rosario": ["rosario", "santa fe"],
+        "Mar del Plata": ["mar del plata", "mdp", "chapadmalal"],
+    }
+    
+    for city_name, keywords in cities.items():
+        for kw in keywords:
+            if re.search(rf"\b{re.escape(kw)}\b", text_lower):
+                return city_name
+                
+    return "Buenos Aires"

@@ -9,7 +9,13 @@ from sqlalchemy.orm import Session
 from ..db import SessionLocal
 from ..models import Event
 from ..genre import detect_genres
-from ..utils import normalize_title, make_hash, parse_date
+from ..utils import (
+    TZ,
+    make_hash,
+    normalize_title,
+    parse_date,
+    detect_city,
+)
 from ..services.ocr import extract_text_from_bytes
 # from ..services.n8n_service import push_event_to_n8n
 
@@ -135,8 +141,11 @@ async def fetch_and_store(limit: Optional[int] = None, force_publish: bool = Fal
                     })
             
             # Filter and sort
-            all_found_events = [e for e in all_found_events if e["date"]]
-            all_found_events.sort(key=lambda x: x["date"])
+            # Filter: include if we have a date OR if it's an image message (potential OCR)
+            all_found_events = [e for e in all_found_events if e["date"] or _is_image_message(e["msg"])]
+            
+            # For sorting, use a distant future date for those without one yet
+            all_found_events.sort(key=lambda x: x["date"] or datetime.max.date())
             
             if limit:
                 all_found_events = all_found_events[:limit]
@@ -178,14 +187,16 @@ async def fetch_and_store(limit: Optional[int] = None, force_publish: bool = Fal
                         existing.support_wallet = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
                     continue
 
-                genres = detect_genres(combined_text, hints=[title, ch, media_text])
+                genres, artists = detect_genres(title, hints=[combined_text, ch, media_text])
                 ev = Event(
                     title=title,
                     title_norm=title_norm,
                     date=date,
                     time=time,
                     venue=None,
+                    city=detect_city(combined_text),
                     genres=genres,
+                    artists=artists,
                     source_type="telegram",
                     source_name=ch,
                     source_link=f"https://t.me/{ch}/{msg.id}",

@@ -7,7 +7,13 @@ from sqlalchemy.orm import Session
 from ..db import SessionLocal
 from ..models import Event
 from ..genre import detect_genres
-from ..utils import normalize_title, make_hash, TZ
+from ..utils import (
+    TZ,
+    make_hash,
+    normalize_title,
+    parse_date,
+    detect_city,
+)
 # from ..services.n8n_service import push_event_to_n8n
 
 
@@ -60,7 +66,7 @@ def run(limit: int = None, force_publish: bool = False):
             continue
         fecha = item.get("fecha")
         hora = item.get("hora")
-        date, time = _parse_datetime(fecha, hora)
+        date, time = _parse_datetime(fecha, hora) # Keep using _parse_datetime as parse_date from utils returns datetime object, not date, time tuple.
         if date:
             items_with_dates.append((date, time, item))
     
@@ -95,7 +101,7 @@ def run(limit: int = None, force_publish: bool = False):
             media_url = item.get("img") or None
 
             combined_text = " ".join(filter(None, [title, descripcion, venue]))
-            genres = detect_genres(combined_text, hints=[title, descripcion, venue])
+            genres, artists = detect_genres(title, hints=[descripcion, venue])
 
             existing = db.query(Event).filter_by(dedupe_hash=dedupe).first()
             if existing:
@@ -103,6 +109,7 @@ def run(limit: int = None, force_publish: bool = False):
                 existing.date = date
                 existing.time = time
                 existing.genres = genres
+                existing.artists = artists
                 existing.venue = venue or existing.venue
                 existing.source_link = source_link
                 existing.media_url = media_url
@@ -121,8 +128,9 @@ def run(limit: int = None, force_publish: bool = False):
                 date=date,
                 time=time,
                 venue=venue,
-                city="Buenos Aires",
+                city=detect_city(" ".join(filter(None, [venue, title]))),
                 genres=genres,
+                artists=artists,
                 source_type="site",
                 source_name="catpass",
                 source_link=source_link,

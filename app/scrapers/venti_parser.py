@@ -15,7 +15,13 @@ from sqlalchemy.orm import Session
 from ..db import SessionLocal
 from ..models import Event
 from ..genre import detect_genres
-from ..utils import normalize_title, make_hash, parse_date, TZ
+from ..utils import (
+    TZ,
+    make_hash,
+    normalize_title,
+    parse_date,
+    detect_city,
+)
 from ..config import Config
 # from ..services.n8n_service import push_event_to_n8n
 from .link_utils import (
@@ -482,9 +488,9 @@ def run(limit: int = None, force_publish: bool = False):
                     item,
                     "city",
                     ("location", "city"),
-                    default="Buenos Aires",
+                    default=None,
                 )
-                city_str = _short_text(city) or "Buenos Aires"
+                city_str = detect_city(" ".join(filter(None, [city, location_text_str, venue_address_str, title, description])))
 
                 start_date = item.get("startDate") or item.get("start_date")
                 end_date = item.get("endDate") or item.get("end_date")
@@ -553,7 +559,7 @@ def run(limit: int = None, force_publish: bool = False):
                     item.get("genres"),
                 )
                 text_for_genre = " ".join(hint_texts)
-                genres = detect_genres(text_for_genre, hints=hint_texts)
+                genres, artists = detect_genres(title, hints=hint_texts)
 
                 if dedupe in seen_hashes:
                     continue
@@ -564,6 +570,7 @@ def run(limit: int = None, force_publish: bool = False):
                     existing.date = date
                     existing.time = time
                     existing.genres = genres
+                    existing.artists = artists
                     existing.venue = location_text_str or existing.venue
                     existing.city = city_str
                     existing.source_link = source_link
@@ -585,6 +592,7 @@ def run(limit: int = None, force_publish: bool = False):
                     venue=location_text_str,
                     city=city_str,
                     genres=genres,
+                    artists=artists,
                     source_type="site",
                     source_name="venti",
                     source_link=source_link,

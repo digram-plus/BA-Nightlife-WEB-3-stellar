@@ -29,20 +29,16 @@ class Config:
     TOPIC_POP = int(os.getenv("TOPIC_POP", "0"))
     TOPIC_INDIE = int(os.getenv("TOPIC_INDIE", "0"))
     TOPIC_METAL = int(os.getenv("TOPIC_METAL", "0"))
-    TOPIC_CALENDAR = int(os.getenv("TOPIC_CALENDAR", "0"))
     TOPIC_GENERAL = int(os.getenv("TOPIC_GENERAL", "0"))
     TOPIC_ELECTRONIC = int(os.getenv("TOPIC_ELECTRONIC", "0"))
     TOPIC_HOUSE = int(os.getenv("TOPIC_HOUSE", "0"))
     TOPIC_TECHNO = int(os.getenv("TOPIC_TECHNO", "0"))
     TOPIC_RAP = int(os.getenv("TOPIC_RAP", "0"))
     TOPIC_JAZZ = int(os.getenv("TOPIC_JAZZ", "0"))
-    TOPIC_TRANCE = int(os.getenv("TOPIC_TRANCE", "0"))
-    TOPIC_DNB = int(os.getenv("TOPIC_DNB", "0"))
 
     TOPIC_MAP = {
         "general": TOPIC_GENERAL,
         "misc": TOPIC_GENERAL,
-        "calendar": TOPIC_CALENDAR,
         "trance": TOPIC_TRANCE,
         "dnb": TOPIC_DNB,
         "rock": TOPIC_ROCK,

@@ -159,13 +159,13 @@ def run_scraper_bg(source_name: str):
     logger.info(f"Triggering scraper: {source_name}")
     try:
         if source_name == "venti":
-            venti_parser.run(limit=5, force_publish=True)
+            venti_parser.run(limit=5, force_publish=False)
         elif source_name == "catpass":
-            catpass_parser.run(limit=5, force_publish=True)
+            catpass_parser.run(limit=5, force_publish=False)
         elif source_name == "passline":
-            passline_parser.run(limit=5, force_publish=True)
+            passline_parser.run(limit=5, force_publish=False)
         elif source_name == "bombo":
-            bombo_parser.run(limit=5, force_publish=True)
+            bombo_parser.run(limit=5, force_publish=False)
     except Exception as e:
         logger.error(f"Error running scraper {source_name}: {e}")
 

@@ -31,6 +31,7 @@ class Event(Base):
     venue: Mapped[Optional[str]] = mapped_column(String(255))
     city: Mapped[Optional[str]] = mapped_column(String(120), default="Buenos Aires")
     genres: Mapped[Optional[list[str]]] = mapped_column(ARRAY(String))
+    artists: Mapped[Optional[list[str]]] = mapped_column(ARRAY(String))
     support_wallet: Mapped[Optional[str]] = mapped_column(String(42))
     vibe_description: Mapped[Optional[str]] = mapped_column(Text)
 
@@ -44,6 +45,9 @@ class Event(Base):
     status: Mapped[str] = mapped_column(String(32), default="queued", index=True)
     published_msg_id: Mapped[Optional[int]] = mapped_column(BigInteger)
     published_topic_id: Mapped[Optional[int]] = mapped_column(BigInteger)
+    
+    retry_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    next_retry_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

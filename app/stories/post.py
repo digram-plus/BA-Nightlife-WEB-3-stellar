@@ -18,4 +18,4 @@ async def send_story():
         # Fallback: отправляем в топик календаря как обычный пост-картинку
         from aiogram import Bot
         bot = Bot(token=os.getenv("TG_BOT_TOKEN"))
-        await bot.send_photo(chat_id=os.getenv("TG_CHANNEL_ID"), photo=png, caption="Hoy en BA — selección del día", message_thread_id=int(os.getenv("TOPIC_CALENDAR","0")))
+        await bot.send_photo(chat_id=os.getenv("TG_CHANNEL_ID"), photo=png, caption="Hoy en BA — selección del día", message_thread_id=int(os.getenv("TOPIC_GENERAL","0")))

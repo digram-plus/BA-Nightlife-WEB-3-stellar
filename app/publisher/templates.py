@@ -1,6 +1,13 @@
 import html
 import random
 from datetime import date, time
+from typing import Iterable, Optional, Union
+from urllib.parse import quote_plus
+
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+from ..config import Config
+from ..models import Event
 
 GENRE_HOOKS: dict[str, list[str]] = {
     "trance": [

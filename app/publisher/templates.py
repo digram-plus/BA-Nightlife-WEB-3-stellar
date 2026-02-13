@@ -155,6 +155,9 @@ def build_keyboard(ev: Event) -> InlineKeyboardMarkup:
         ticket_url = getattr(ev, "source_link", None) or getattr(ev, "source_url", None)
         button_label = "ℹ️ Подробнее"
 
+    if ticket_url:
+        buttons.append(InlineKeyboardButton(text=button_label, url=ticket_url))
+
     if not buttons:
         return None
         

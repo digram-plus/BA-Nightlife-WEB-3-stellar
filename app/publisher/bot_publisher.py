@@ -177,10 +177,10 @@ async def run_publisher():
                 db.commit()
                 
                 # Push to n8n after successful Telegram post to keep calendar/logs in sync
-                try:
-                    await push_event_to_n8n(ev)
-                except Exception as n8n_err:
-                    logging.warning(f"Failed to push {ev.title} to n8n: {n8n_err}")
+                # try:
+                #     await push_event_to_n8n(ev)
+                # except Exception as n8n_err:
+                #     logging.warning(f"Failed to push {ev.title} to n8n: {n8n_err}")
 
                 logging.info(f"Опубликовано '{ev.title}' (msg_id={mid}, topic_id={tid})")
                 await asyncio.sleep(1.5)

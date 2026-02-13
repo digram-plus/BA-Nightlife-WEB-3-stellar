@@ -146,6 +146,9 @@ async def run_publisher():
     db: Session = SessionLocal()
     try:
         from datetime import timedelta
+        today = datetime.now(TZ).date()
+        horizon_date = today + timedelta(days=14)
+        
         # Fetch events within the 14-day horizon, filtered by city and retry status
         events = (
             db.query(Event)
@@ -196,3 +199,6 @@ async def run_publisher():
 
     finally:
         db.close()
+
+if __name__ == "__main__":
+    asyncio.run(run_publisher())

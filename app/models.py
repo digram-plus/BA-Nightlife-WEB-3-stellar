@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, time
+from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy import (
@@ -13,6 +14,8 @@ from sqlalchemy import (
     func,
     BigInteger,
     ARRAY,
+    Numeric,
+    JSON,
     ForeignKey,
     UniqueConstraint,
 )
@@ -72,4 +75,40 @@ class CheckIn(Base):
     nonce: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class PaymentIntent(Base):
+    __tablename__ = "payment_intents"
+    __table_args__ = (
+        UniqueConstraint("public_id", name="uq_payment_intents_public_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    public_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    event_id: Mapped[int] = mapped_column(Integer, ForeignKey("events.id"), nullable=False, index=True)
+    kind: Mapped[str] = mapped_column(String(24), nullable=False, default="ticket")
+    provider: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending", index=True)
+    provider_status: Mapped[Optional[str]] = mapped_column(String(64))
+    provider_session_id: Mapped[Optional[str]] = mapped_column(String(128), index=True)
+
+    fiat_amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    fiat_currency: Mapped[str] = mapped_column(String(8), nullable=False, default="ARS")
+    asset_code: Mapped[str] = mapped_column(String(16), nullable=False, default="USDC")
+    asset_issuer: Mapped[Optional[str]] = mapped_column(String(80))
+    checkout_url: Mapped[str] = mapped_column(Text, nullable=False)
+
+    telegram_user_id: Mapped[Optional[int]] = mapped_column(BigInteger)
+    user_wallet: Mapped[Optional[str]] = mapped_column(String(128))
+    failure_reason: Mapped[Optional[str]] = mapped_column(Text)
+
+    metadata_json: Mapped[Optional[dict]] = mapped_column("metadata", JSON)
+    provider_payload: Mapped[Optional[dict]] = mapped_column(JSON)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )

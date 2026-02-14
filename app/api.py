@@ -2,18 +2,30 @@ import os
 import httpx
 from dotenv import load_dotenv
 import secrets
+import uuid
 from pathlib import Path
 from datetime import date, datetime
+from decimal import Decimal
 from fastapi import FastAPI, Depends, Query, HTTPException, BackgroundTasks, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from eth_account import Account
 from eth_account.messages import encode_defunct
 from .db import SessionLocal
-from .models import Event, CheckIn
-from pydantic import BaseModel
+from .models import Event, CheckIn, PaymentIntent
+from pydantic import BaseModel, Field, field_validator
 import logging
+from .services.payments import (
+    SUPPORTED_PAYMENT_PROVIDERS,
+    build_checkout_url,
+    choose_provider,
+    extract_payment_reference,
+    extract_provider_session_id,
+    get_webhook_secret,
+    normalize_payment_status,
+    utc_now,
+)
 
 # Import scrapers
 from .scrapers import venti_parser, catpass_parser, passline_parser, bombo_parser
@@ -91,6 +103,63 @@ class CheckInStatusResponse(BaseModel):
     status: str
     checkin_id: Optional[int] = None
     created_at: Optional[datetime] = None
+
+
+class PaymentCreateRequest(BaseModel):
+    event_id: int
+    kind: Literal["ticket", "donation"] = "ticket"
+    fiat_amount: Decimal = Field(..., gt=0)
+    fiat_currency: str = Field(default="ARS", min_length=3, max_length=8)
+    preferred_provider: Optional[str] = None
+    telegram_user_id: Optional[int] = None
+    user_wallet: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+    @field_validator("fiat_currency")
+    @classmethod
+    def normalize_currency(cls, value: str) -> str:
+        return value.strip().upper()
+
+    @field_validator("preferred_provider")
+    @classmethod
+    def normalize_provider(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        return value.strip().lower()
+
+
+class PaymentCreateResponse(BaseModel):
+    payment_id: str
+    event_id: int
+    provider: str
+    status: str
+    checkout_url: str
+    fiat_amount: Decimal
+    fiat_currency: str
+    kind: str
+    created_at: datetime
+
+
+class PaymentStatusResponse(BaseModel):
+    payment_id: str
+    event_id: int
+    provider: str
+    status: str
+    provider_status: Optional[str] = None
+    kind: str
+    fiat_amount: Decimal
+    fiat_currency: str
+    checkout_url: str
+    failure_reason: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class PaymentWebhookResponse(BaseModel):
+    ok: bool
+    payment_id: str
+    provider: str
+    status: str
 
 # Dependency to get DB session
 def get_db():
@@ -265,6 +334,138 @@ def checkin_status(
         "status": "checked_in",
         "checkin_id": checkin.id,
         "created_at": checkin.created_at,
+    }
+
+
+@app.post("/api/payments/create", response_model=PaymentCreateResponse)
+def create_payment(payload: PaymentCreateRequest, db: Session = Depends(get_db)):
+    event = db.query(Event).filter_by(id=payload.event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    provider = choose_provider(payload.preferred_provider)
+    if provider not in SUPPORTED_PAYMENT_PROVIDERS:
+        raise HTTPException(status_code=400, detail="Unsupported payment provider")
+
+    payment_id = uuid.uuid4().hex
+    checkout_url = build_checkout_url(provider, payment_id)
+
+    payment = PaymentIntent(
+        public_id=payment_id,
+        event_id=payload.event_id,
+        kind=payload.kind,
+        provider=provider,
+        status="pending",
+        fiat_amount=payload.fiat_amount,
+        fiat_currency=payload.fiat_currency,
+        asset_code="USDC",
+        checkout_url=checkout_url,
+        telegram_user_id=payload.telegram_user_id,
+        user_wallet=payload.user_wallet,
+        metadata_json=payload.metadata,
+    )
+    db.add(payment)
+    db.commit()
+    db.refresh(payment)
+
+    return {
+        "payment_id": payment.public_id,
+        "event_id": payment.event_id,
+        "provider": payment.provider,
+        "status": payment.status,
+        "checkout_url": payment.checkout_url,
+        "fiat_amount": payment.fiat_amount,
+        "fiat_currency": payment.fiat_currency,
+        "kind": payment.kind,
+        "created_at": payment.created_at,
+    }
+
+
+@app.get("/api/payments/{payment_id}/status", response_model=PaymentStatusResponse)
+def payment_status(payment_id: str, db: Session = Depends(get_db)):
+    payment = db.query(PaymentIntent).filter_by(public_id=payment_id).first()
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+
+    return {
+        "payment_id": payment.public_id,
+        "event_id": payment.event_id,
+        "provider": payment.provider,
+        "status": payment.status,
+        "provider_status": payment.provider_status,
+        "kind": payment.kind,
+        "fiat_amount": payment.fiat_amount,
+        "fiat_currency": payment.fiat_currency,
+        "checkout_url": payment.checkout_url,
+        "failure_reason": payment.failure_reason,
+        "created_at": payment.created_at,
+        "updated_at": payment.updated_at,
+    }
+
+
+def _extract_raw_status(payload: Dict[str, Any]) -> Optional[str]:
+    for key in ("status", "payment_status", "state"):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    data = payload.get("data")
+    if isinstance(data, dict):
+        return _extract_raw_status(data)
+    return None
+
+
+@app.post("/api/payments/webhook/{provider}", response_model=PaymentWebhookResponse)
+def payment_webhook(
+    provider: str,
+    payload: Dict[str, Any],
+    x_webhook_secret: Optional[str] = Header(default=None, alias="X-Webhook-Secret"),
+    db: Session = Depends(get_db),
+):
+    provider_name = provider.strip().lower()
+    if provider_name not in SUPPORTED_PAYMENT_PROVIDERS:
+        raise HTTPException(status_code=400, detail="Unsupported payment provider")
+
+    expected_secret = get_webhook_secret(provider_name)
+    if expected_secret and x_webhook_secret != expected_secret:
+        raise HTTPException(status_code=401, detail="Invalid webhook secret")
+
+    payment_ref = extract_payment_reference(payload)
+    if not payment_ref:
+        raise HTTPException(status_code=400, detail="Missing payment reference in webhook payload")
+
+    payment = db.query(PaymentIntent).filter_by(public_id=payment_ref).first()
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+
+    if payment.provider != provider_name:
+        raise HTTPException(status_code=409, detail="Provider mismatch for payment")
+
+    raw_status = _extract_raw_status(payload)
+    mapped_status = normalize_payment_status(raw_status)
+
+    payment.status = mapped_status
+    payment.provider_status = raw_status
+    payment.provider_payload = payload
+
+    session_id = extract_provider_session_id(payload)
+    if session_id:
+        payment.provider_session_id = session_id
+
+    if mapped_status in {"failed", "cancelled", "expired"}:
+        reason = payload.get("reason") or payload.get("error") or payload.get("message")
+        payment.failure_reason = str(reason) if reason is not None else mapped_status
+    else:
+        payment.failure_reason = None
+
+    payment.updated_at = utc_now()
+    db.commit()
+    db.refresh(payment)
+
+    return {
+        "ok": True,
+        "payment_id": payment.public_id,
+        "provider": payment.provider,
+        "status": payment.status,
     }
 
 @app.post("/api/openfort/session")

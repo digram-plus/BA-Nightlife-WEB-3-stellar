@@ -55,6 +55,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/api/health")
+def health_check():
+    return {"status": "ok", "timestamp": datetime.now().isoformat()}
+
 # Pydantic schemas for response
 class EventSchema(BaseModel):
     id: int

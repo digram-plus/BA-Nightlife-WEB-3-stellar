@@ -6,8 +6,18 @@ from typing import Optional
 
 import dateparser
 import pytz
+from datetime import timezone as dtimezone
 
-TZ = pytz.timezone(os.getenv("TZ", "America/Argentina/Buenos_Aires"))
+def _get_tz():
+    tz_name = os.getenv("TZ", "America/Argentina/Buenos_Aires")
+    try:
+        return pytz.timezone(tz_name)
+    except pytz.UnknownTimeZoneError:
+        if tz_name.upper() == "UTC":
+            return pytz.utc
+        return pytz.timezone("America/Argentina/Buenos_Aires")
+
+TZ = _get_tz()
 
 TIME_REGEX = re.compile(
     r"\b([01]?\d|2[0-3])[:.][0-5]\d\b|\b([01]?\d|2[0-3])\s?(hs|hrs|h)\b",

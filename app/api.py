@@ -59,6 +59,15 @@ app.add_middleware(
 def health_check():
     return {"status": "ok", "timestamp": datetime.now().isoformat()}
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    import traceback
+    return {
+        "status": "error",
+        "message": str(exc),
+        "traceback": traceback.format_exc().split("\n")
+    }
+
 # Pydantic schemas for response
 class EventSchema(BaseModel):
     id: int

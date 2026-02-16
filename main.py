@@ -1,35 +1,19 @@
-import traceback
+from fastapi import FastAPI
 import sys
 import os
 
-try:
-    # Try to import the real app
-    from app.api import app
-except Exception as e:
-    # If it fails, create a minimal app to report the error
-    from fastapi import FastAPI
-    app = FastAPI()
-    
-    error_trace = traceback.format_exc()
-    # Log to stdout (Vercel captures this in Runtime Logs)
-    print(f"--- CRITICAL IMPORT ERROR ---")
-    print(f"Error: {e}")
-    print(error_trace)
-    print(f"-----------------------------")
+app = FastAPI()
 
-    @app.get("/api/health")
-    @app.get("/api/error")
-    @app.get("/")
-    def error_page():
-        return {
-            "status": "error",
-            "message": "Application failed to initialize (ImportError or StartupError)",
-            "error_details": str(e),
-            "traceback": error_trace.split("\n"),
-            "python_version": sys.version,
-            "cwd": os.getcwd(),
-            "sys_path": sys.path
-        }
+@app.get("/api/health")
+@app.get("/")
+def diagnostic():
+    return {
+        "status": "diagnostic",
+        "message": "Pure FastAPI app is running on Vercel!",
+        "python_version": sys.version,
+        "cwd": os.getcwd(),
+        "env_keys": list(os.environ.keys())
+    }
 
-# Vercel's @vercel/python runtime looks for the 'app' variable
+# Export app instance
 app = app

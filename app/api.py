@@ -55,6 +55,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi.responses import JSONResponse
+
 @app.get("/api/health")
 def health_check():
     return {"status": "ok", "timestamp": datetime.now().isoformat()}
@@ -62,11 +64,13 @@ def health_check():
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
     import traceback
-    return {
+    error_data = {
         "status": "error",
         "message": str(exc),
+        "error_type": type(exc).__name__,
         "traceback": traceback.format_exc().split("\n")
     }
+    return JSONResponse(status_code=500, content=error_data)
 
 # Pydantic schemas for response
 class EventSchema(BaseModel):
